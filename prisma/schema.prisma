@@ -1,0 +1,409 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MODEL
+// ============================================
+
+model User {
+  id                     String    @id @default(cuid())
+  name                   String?
+  email                  String    @unique
+  phone                  String?   @unique
+  password               String
+  role                   String    @default("customer") // customer, admin, super_admin
+  
+  // Email verification
+  emailVerified          DateTime?
+  emailVerificationToken String?   @unique
+  
+  // Phone verification
+  phoneVerified          DateTime?
+  
+  // Password reset
+  resetPasswordToken     String?   @unique
+  resetPasswordExpires   DateTime?
+  
+  // Account status
+  isActive               Boolean   @default(true)
+  
+  // GenovaAI specific fields
+  credits                Int       @default(0)
+  balance                Decimal   @default(0) @db.Decimal(10, 2)
+  subscriptionStatus     String    @default("free") // free, active, expired
+  subscriptionExpiry     DateTime?
+  
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  
+  // Relations
+  creditTransactions     CreditTransaction[]
+  llmRequests            LLMRequest[]
+  chatHistories          ChatHistory[]
+  knowledgeFiles         KnowledgeFile[]
+  geminiApiKeys          GeminiAPIKey[]
+  systemPrompts          SystemPrompt[]
+  extensionSessions      ExtensionSession[]
+  userSessions           UserSession[]
+  payments               Payment[]
+  voucherUsages          VoucherUsage[]
+  
+  @@index([email])
+  @@index([role])
+  @@index([credits])
+  @@index([balance])
+}
+
+// ============================================
+// SESSION MANAGEMENT
+// ============================================
+
+model UserSession {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique @db.VarChar(512)
+  deviceInfo String?
+  ipAddress  String?
+  userAgent  String?
+  isActive   Boolean  @default(true)
+  lastUsed   DateTime @default(now())
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@index([isActive])
+}
+
+// ============================================
+// CREDIT & TRANSACTION MODELS
+// ============================================
+
+model CreditTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // credit_purchase, credit_used, credit_refund, balance_topup, welcome_bonus
+  amount      Decimal  @db.Decimal(10, 2)
+  credits     Int?     // For credit transactions
+  description String?
+  paymentId   String?  // Link to Payment table
+  voucherId   String?  // Link to Voucher table
+  status      String   @default("completed") // completed, pending, failed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payment Payment? @relation(fields: [paymentId], references: [id])
+  voucher Voucher? @relation(fields: [voucherId], references: [id])
+  
+  @@index([userId, createdAt])
+  @@index([type])
+  @@index([status])
+}
+
+// ============================================
+// LLM REQUEST & CHAT MODELS
+// ============================================
+
+model LLMRequest {
+  id               String   @id @default(cuid())
+  userId           String
+  requestMode      String   // free_user_key, free_pool, premium
+  provider         String   // gemini, openrouter, anthropic, openai
+  model            String   // Model name used
+  
+  // Request details
+  systemPrompt     String   @db.Text
+  knowledgeContext String?  @db.Text
+  fileIds          String[] // Array of KnowledgeFile IDs
+  question         String   @db.Text
+  
+  // Response details
+  answer           String?  @db.Text
+  status           String   // success, failed, rate_limited
+  errorMessage     String?  @db.Text
+  
+  // Usage tracking
+  inputTokens      Int?
+  outputTokens     Int?
+  totalTokens      Int?
+  costCredits      Int      @default(0) // Credits deducted
+  
+  // Timing
+  responseTimeMs   Int?
+  createdAt        DateTime @default(now())
+  
+  // API Key tracking (for pool mode)
+  apiKeyUsed       String?  // Which API key was used
+  
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatHistory ChatHistory?
+  
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([requestMode])
+  @@index([provider, model])
+}
+
+model ChatHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  sessionId    String   // Link to ExtensionSession
+  llmRequestId String   @unique
+  
+  // Chat content
+  question     String   @db.Text
+  answer       String   @db.Text
+  answerMode   String   // single, short, medium, long - captured at time of answer
+  
+  // Metadata
+  rating       Int?     // User rating 1-5
+  feedback     String?  @db.Text
+  isBookmarked Boolean  @default(false)
+  tags         String[] // For categorization
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session    ExtensionSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  llmRequest LLMRequest       @relation(fields: [llmRequestId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, createdAt])
+  @@index([sessionId])
+  @@index([isBookmarked])
+}
+
+// ============================================
+// KNOWLEDGE MANAGEMENT
+// ============================================
+
+model KnowledgeFile {
+  id            String    @id @default(cuid())
+  userId        String
+  
+  fileName      String
+  fileType      String    // pdf, txt
+  fileSize      Int       // Bytes
+  
+  // Storage
+  storageUrl    String?   // If stored in cloud (S3, etc)
+  fileContent   String?   @db.Text // For small text files
+  geminiFileUri String?   // Gemini File API URI for PDFs
+  
+  // Metadata
+  uploadedAt    DateTime  @default(now())
+  expiresAt     DateTime? // Auto-delete after X days
+  isActive      Boolean   @default(true)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([isActive])
+}
+
+// ============================================
+// API KEY POOL MANAGEMENT
+// ============================================
+
+model GeminiAPIKey {
+  id                String    @id @default(cuid())
+  userId            String?   // NULL = admin key
+  apiKey            String    @unique
+  
+  // Status tracking
+  status            String    @default("active") // active, rate_limited, invalid, dead
+  lastUsedAt        DateTime?
+  lastErrorAt       DateTime?
+  lastErrorType     String?   // invalid_key, rate_limit, quota_exceeded, model_error
+  
+  // Daily quota tracking
+  dailyQuotaDate    String?   // YYYY-MM-DD
+  requestsToday     Int       @default(0)
+  
+  // Limits (if known)
+  maxRequestsPerDay Int?      @default(1500) // Default Gemini free tier
+  
+  // Priority (lower = higher priority)
+  priority          Int       @default(100) // Admin keys = 1, User keys = 100
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([status, priority])
+  @@index([userId])
+  @@index([dailyQuotaDate])
+}
+
+// ============================================
+// SYSTEM PROMPT MANAGEMENT
+// ============================================
+
+model SystemPrompt {
+  id          String   @id @default(cuid())
+  userId      String?  // NULL = admin template
+  name        String
+  content     String   @db.Text
+  
+  // Metadata
+  isTemplate  Boolean  @default(false) // Admin-created templates
+  isActive    Boolean  @default(true)
+  isPublic    Boolean  @default(false) // Shareable
+  
+  category    String?  // quiz, general, coding, etc
+  description String?
+  
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([isTemplate, isPublic])
+  @@index([category])
+}
+
+// ============================================
+// EXTENSION SESSION MANAGEMENT
+// ============================================
+
+model ExtensionSession {
+  id               String   @id @default(cuid())
+  userId           String
+  sessionId        String   @unique // Generated by extension
+  
+  sessionName      String   @default("Default Session")
+  
+  // Session Configuration - All settings stored in DB, not in extension storage
+  systemPrompt     String   @default("You are a helpful quiz assistant.") @db.Text
+  knowledgeContext String?  @db.Text // Optional knowledge base text
+  knowledgeFileIds String[] // References to KnowledgeFile
+  
+  // Answer & Request Settings
+  answerMode       String   @default("short") // single, short, medium, long
+  requestMode      String   @default("free_pool") // free_user_key, free_pool, premium
+  provider         String?  // gemini, openrouter (for premium mode)
+  model            String?  // gemini-1.5-flash, gpt-4-turbo, claude-3-opus, etc.
+  
+  // Status
+  isActive         Boolean  @default(true)
+  lastSyncAt       DateTime @default(now())
+  lastUsedAt       DateTime @default(now())
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatHistories ChatHistory[]
+  
+  @@index([userId, isActive])
+  @@index([sessionId])
+  @@index([lastUsedAt])
+}
+
+// ============================================
+// PAYMENT MODELS
+// ============================================
+
+model Payment {
+  id              String    @id @default(cuid())
+  userId          String
+  amount          Decimal   @db.Decimal(10, 2)
+  method          String    // BCA, BNI, QRIS, etc
+  status          String    @default("pending") // pending, completed, failed, expired
+  type            String    // balance, credit
+  paymentDate     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  expiresAt       DateTime?
+  
+  // Duitku specific
+  externalId      String?   @unique // Duitku merchantOrderId
+  paymentUrl      String?
+  reference       String?   // Duitku reference
+  
+  // Gateway info
+  gatewayProvider String?   @default("duitku")
+  gatewayResponse Json?
+  
+  // GenovaAI specific
+  creditAmount    Int?      // Credits purchased
+  
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditTransactions  CreditTransaction[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([externalId])
+}
+
+// ============================================
+// VOUCHER MODELS
+// ============================================
+
+model Voucher {
+  id                      String   @id @default(cuid())
+  code                    String   @unique
+  name                    String
+  description             String?
+  type                    String   // balance, credit
+  discountType            String   // percentage, fixed
+  value                   Decimal  @db.Decimal(10, 2)
+  minAmount               Decimal? @db.Decimal(10, 2)
+  maxDiscount             Decimal? @db.Decimal(10, 2)
+  maxUses                 Int?
+  usedCount               Int      @default(0)
+  allowMultipleUsePerUser Boolean  @default(false)
+  isActive                Boolean  @default(true)
+  startDate               DateTime @default(now())
+  endDate                 DateTime?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  
+  // GenovaAI specific
+  creditBonus             Int?     // Bonus credits when used
+  balanceBonus            Decimal? @db.Decimal(10, 2) // Bonus balance
+  
+  voucherUsages      VoucherUsage[]
+  creditTransactions CreditTransaction[]
+  
+  @@index([code])
+  @@index([isActive])
+  @@index([type])
+  @@index([discountType])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model VoucherUsage {
+  id             String   @id @default(cuid())
+  voucherId      String
+  userId         String
+  discountAmount Decimal  @db.Decimal(10, 2)
+  creditsBonus   Int?     // Credits received
+  balanceBonus   Decimal? @db.Decimal(10, 2) // Balance received
+  usedAt         DateTime @default(now())
+  
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voucher Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  
+  @@index([voucherId])
+  @@index([userId])
+  @@index([usedAt])
+}
