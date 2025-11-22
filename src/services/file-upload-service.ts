@@ -2,7 +2,6 @@ import { PrismaClient } from '../generated/prisma';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
-import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
 
 const prisma = new PrismaClient();
@@ -62,8 +61,9 @@ export class FileUploadService {
    */
   static async extractTextFromPDF(filePath: string): Promise<string> {
     try {
+      const pdfParse = (await import('pdf-parse')) as unknown as { default: (buffer: Buffer) => Promise<{ text: string }> };
       const dataBuffer = await fs.readFile(filePath);
-      const data = await pdf(dataBuffer);
+      const data = await pdfParse.default(dataBuffer);
       return data.text;
     } catch (error) {
       console.error('PDF extraction error:', error);

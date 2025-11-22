@@ -97,9 +97,11 @@ export default function SettingsPage() {
         setSessions([...sessions, data.data]);
         setNewSession({
           sessionName: '',
-          defaultRequestMode: 'paid',
-          defaultProvider: 'openai',
-          defaultModel: 'gpt-4o',
+          requestMode: 'premium',
+          provider: 'openai',
+          model: 'gpt-4o',
+          answerMode: 'medium',
+          systemPrompt: 'You are a helpful AI assistant.',
         });
         setShowAddForm(false);
       } else {
@@ -351,7 +353,7 @@ export default function SettingsPage() {
       ) : (
         <div className="grid gap-4">
           {sessions.map((session) => {
-            const provider = providers.find(p => p.value === session.defaultProvider);
+            const provider = providers.find(p => p.value === session.provider);
             return (
               <Card key={session.id}>
                 <CardContent className="p-6">

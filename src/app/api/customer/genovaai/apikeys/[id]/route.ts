@@ -7,9 +7,10 @@ const prisma = new PrismaClient();
 // DELETE /api/customer/genovaai/apikeys/[id]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -30,7 +31,7 @@ export async function DELETE(
     // Verify ownership
     const apiKey = await prisma.geminiAPIKey.findFirst({
       where: {
-        id: params.id,
+        id: id,
         userId: payload.userId,
       },
     });
@@ -43,7 +44,7 @@ export async function DELETE(
     }
 
     await prisma.geminiAPIKey.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({

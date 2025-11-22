@@ -1,29 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@/generated/prisma';
+import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { z } from 'zod';
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-interface DuitkuPaymentData {
-  merchantOrderId: string;
-  amount: number;
-  paymentMethod: string;
-  paymentChannel: string;
-  customerEmail: string;
-}
-
-// This should be replaced with actual Duitku API integration
-async function createDuitkuPayment(data: DuitkuPaymentData) {
-  // Mock payment creation
-  return {
-    paymentId: `PAY${Date.now()}`,
-    paymentUrl: `https://sandbox.duitku.com/payment/${data.merchantOrderId}`,
-    vaNumber: data.paymentMethod.includes('VA') ? `88077${Math.floor(Math.random() * 10000000000)}` : null,
-    qrString: data.paymentMethod === 'QRIS' ? 'mock-qr-string' : null,
-    expiryTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-  };
-}
+const createPaymentSchema = z.object({
+  type: z.enum(['balance', 'credit']),
+  amount: z.number().min(10000, 'Minimum amount is Rp 10,000'),
+  credits: z.number().optional(),
+  paymentMethod: z.string(),
+  voucherCode: z.string().optional(),
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,29 +21,35 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
-    const userId = decoded.userId;
+    const payload = await verifyAccessToken(token);
+    if (!payload) {
+      return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 });
+    }
+    const userId = payload.userId;
 
     const body = await request.json();
-    const { transactionId, paymentMethod, paymentChannel } = body;
+    const validation = createPaymentSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, message: 'Validation failed', errors: validation.error.issues },
+        { status: 400 }
+      );
+    }
 
-    // Get transaction
-    const transaction = await prisma.balanceTransaction.findFirst({
-      where: {
-        id: transactionId,
-        userId,
-      },
+    const { type, amount, credits, paymentMethod, voucherCode } = validation.data;
+
+    // Get user details
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true, phone: true },
     });
 
-    if (!transaction) {
-      return NextResponse.json({ success: false, message: 'Transaction not found' }, { status: 404 });
+    if (!user) {
+      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
 
-    if (transaction.status === 'completed') {
-      return NextResponse.json({ success: false, message: 'Transaction already completed' }, { status: 400 });
-    }
-
-    // Calculate total amount with payment fee
+    // Calculate payment fees
     const paymentFees: Record<string, number> = {
       'BCA': 4000,
       'BNI': 4000,
@@ -72,38 +66,39 @@ export async function POST(request: NextRequest) {
     };
 
     const paymentFee = paymentFees[paymentMethod] || 0;
-    const totalAmount = parseFloat(transaction.amount.toString()) - parseFloat(transaction.discount.toString()) + paymentFee;
+    const totalAmount = amount + paymentFee;
 
-    // Create payment with Duitku (mock)
-    const duitkuResponse = await createDuitkuPayment({
-      merchantOrderId: transactionId,
-      amount: totalAmount,
-      paymentMethod,
-      paymentChannel,
-      customerEmail: decoded.email,
-    });
+    // Generate merchant order ID
+    const merchantOrderId = `GENO-${Date.now()}-${userId.substring(0, 8)}`;
 
-    // Save payment record
+    // Mock payment URL (replace with actual Duitku integration)
+    const paymentUrl = `https://sandbox.duitku.com/payment/${merchantOrderId}`;
+    const vaNumber = paymentMethod.includes('VA') || ['BCA', 'BNI', 'MANDIRI', 'BRI', 'PERMATA'].includes(paymentMethod)
+      ? `88077${Math.floor(Math.random() * 10000000000)}`
+      : null;
+    const qrString = paymentMethod === 'QRIS' ? `qris-${merchantOrderId}` : null;
+
+    // Create payment record
     const payment = await prisma.payment.create({
       data: {
         userId,
-        transactionId,
         amount: totalAmount,
-        paymentMethod,
-        paymentChannel,
-        paymentProviderId: duitkuResponse.paymentId,
-        paymentUrl: duitkuResponse.paymentUrl,
-        vaNumber: duitkuResponse.vaNumber,
-        qrString: duitkuResponse.qrString,
+        method: paymentMethod,
+        type,
         status: 'pending',
-        expiryTime: new Date(duitkuResponse.expiryTime),
+        expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours
+        externalId: merchantOrderId,
+        paymentUrl,
+        reference: vaNumber || qrString || merchantOrderId,
+        gatewayProvider: 'duitku',
+        gatewayResponse: {
+          merchantOrderId,
+          paymentUrl,
+          vaNumber,
+          qrString,
+        },
+        creditAmount: type === 'credit' ? credits : null,
       },
-    });
-
-    // Update transaction status
-    await prisma.balanceTransaction.update({
-      where: { id: transactionId },
-      data: { status: 'pending' },
     });
 
     return NextResponse.json({
@@ -111,13 +106,19 @@ export async function POST(request: NextRequest) {
       data: {
         paymentId: payment.id,
         paymentUrl: payment.paymentUrl,
-        vaNumber: payment.vaNumber,
-        qrString: payment.qrString,
-        expiryTime: payment.expiryTime,
+        vaNumber,
+        qrString,
+        reference: payment.reference,
+        amount: totalAmount,
+        originalAmount: amount,
+        paymentFee,
+        expiresAt: payment.expiresAt,
       },
     });
   } catch (error) {
     console.error('Error creating payment:', error);
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }

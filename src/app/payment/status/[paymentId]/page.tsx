@@ -161,8 +161,9 @@ export default function PaymentStatusPage() {
                     className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-mono text-lg"
                   />
                   <button
-                    onClick={() => copyToClipboard(payment.vaNumber)}
-                    className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    onClick={() => payment.vaNumber && copyToClipboard(payment.vaNumber)}
+                    disabled={!payment.vaNumber}
+                    className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
                   >
                     <FaCopy className="w-5 h-5" />
                   </button>

@@ -14,9 +14,10 @@ const updateUserSchema = z.object({
 // GET /api/admin/genovaai/users/:userId - Get user details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -35,7 +36,7 @@ export async function GET(
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: params.userId },
+      where: { id: userId },
       include: {
         _count: {
           select: {
@@ -74,9 +75,10 @@ export async function GET(
 // PATCH /api/admin/genovaai/users/:userId - Update user
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -115,7 +117,7 @@ export async function PATCH(
     if (validation.data.subscriptionExpiry) updateData.subscriptionExpiry = new Date(validation.data.subscriptionExpiry);
 
     const user = await prisma.user.update({
-      where: { id: params.userId },
+      where: { id: userId },
       data: updateData,
     });
 

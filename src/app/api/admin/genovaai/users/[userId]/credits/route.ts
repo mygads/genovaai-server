@@ -11,9 +11,10 @@ const creditSchema = z.object({
 // POST /api/admin/genovaai/users/:userId/credits - Add manual credits
 export async function POST(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -41,12 +42,12 @@ export async function POST(
     }
 
     await CreditService.addCredits(
-      params.userId,
+      userId,
       validation.data.amount,
       `Admin manual credit: ${validation.data.description}`
     );
 
-    const balance = await CreditService.getUserBalance(params.userId);
+    const balance = await CreditService.getUserBalance(userId);
 
     return NextResponse.json({
       success: true,

@@ -24,9 +24,10 @@ const updateVoucherSchema = z.object({
 // GET /api/admin/genovaai/vouchers/:voucherId
 export async function GET(
   request: NextRequest,
-  { params }: { params: { voucherId: string } }
+  { params }: { params: Promise<{ voucherId: string }> }
 ) {
   try {
+    const { voucherId } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -45,7 +46,7 @@ export async function GET(
     }
 
     const voucher = await prisma.voucher.findUnique({
-      where: { id: params.voucherId },
+      where: { id: voucherId },
       include: {
         voucherUsages: {
           include: {
@@ -96,9 +97,10 @@ export async function GET(
 // PATCH /api/admin/genovaai/vouchers/:voucherId
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { voucherId: string } }
+  { params }: { params: Promise<{ voucherId: string }> }
 ) {
   try {
+    const { voucherId } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -157,7 +159,7 @@ export async function PATCH(
     if (validation.data.isActive !== undefined) updateData.isActive = validation.data.isActive;
 
     const voucher = await prisma.voucher.update({
-      where: { id: params.voucherId },
+      where: { id: voucherId },
       data: updateData,
     });
 
@@ -183,9 +185,10 @@ export async function PATCH(
 // DELETE /api/admin/genovaai/vouchers/:voucherId
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { voucherId: string } }
+  { params }: { params: Promise<{ voucherId: string }> }
 ) {
   try {
+    const { voucherId } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -204,7 +207,7 @@ export async function DELETE(
     }
 
     await prisma.voucher.delete({
-      where: { id: params.voucherId },
+      where: { id: voucherId },
     });
 
     return NextResponse.json({

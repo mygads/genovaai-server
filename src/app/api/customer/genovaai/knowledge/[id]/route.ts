@@ -8,9 +8,10 @@ import { FileUploadService } from '@/services/file-upload-service';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Verify authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -29,7 +30,7 @@ export async function GET(
       );
     }
 
-    const fileId = params.id;
+    const fileId = id;
     const file = await FileUploadService.getFile(fileId, payload.userId);
 
     if (!file) {
@@ -58,9 +59,10 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Verify authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -79,7 +81,7 @@ export async function DELETE(
       );
     }
 
-    const fileId = params.id;
+    const fileId = id;
     const result = await FileUploadService.deleteFile(fileId, payload.userId);
 
     if (!result) {
@@ -108,9 +110,10 @@ export async function DELETE(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Verify authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -129,7 +132,7 @@ export async function PATCH(
       );
     }
 
-    const fileId = params.id;
+    const fileId = id;
     const body = await request.json();
     const { sessionId } = body;
 

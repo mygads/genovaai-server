@@ -23,9 +23,10 @@ const updateSessionSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
+    const { sessionId: sessionIdParam } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -45,7 +46,7 @@ export async function GET(
 
     const session = await prisma.extensionSession.findFirst({
       where: {
-        sessionId: params.sessionId,
+        sessionId: sessionIdParam,
         userId: payload.userId,
       },
     });
@@ -78,9 +79,10 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
+    const { sessionId: sessionIdParam } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -110,7 +112,7 @@ export async function PATCH(
     // Check if session exists and belongs to user
     const existingSession = await prisma.extensionSession.findFirst({
       where: {
-        sessionId: params.sessionId,
+        sessionId: sessionIdParam,
         userId: payload.userId,
       },
     });
@@ -177,9 +179,10 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
+    const { sessionId: sessionIdParam } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -200,7 +203,7 @@ export async function DELETE(
     // Soft delete by setting isActive to false
     const result = await prisma.extensionSession.updateMany({
       where: {
-        sessionId: params.sessionId,
+        sessionId: sessionIdParam,
         userId: payload.userId,
       },
       data: {

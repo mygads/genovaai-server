@@ -6,12 +6,13 @@ const prisma = new PrismaClient();
 // GET /api/admin/genovaai/vouchers/[id]/usages
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ voucherId: string }> }
 ) {
   try {
+    const { voucherId } = await params;
     const usages = await prisma.voucherUsage.findMany({
       where: {
-        voucherId: params.id,
+        voucherId: voucherId,
       },
       include: {
         user: {

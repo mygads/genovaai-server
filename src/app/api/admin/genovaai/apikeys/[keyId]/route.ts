@@ -13,9 +13,10 @@ const updateKeySchema = z.object({
 // PATCH /api/admin/genovaai/apikeys/:keyId - Update API key
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { keyId: string } }
+  { params }: { params: Promise<{ keyId: string }> }
 ) {
   try {
+    const { keyId } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -52,7 +53,7 @@ export async function PATCH(
     if (validation.data.priority !== undefined) updateData.priority = validation.data.priority;
 
     const apiKey = await prisma.geminiAPIKey.update({
-      where: { id: params.keyId },
+      where: { id: keyId },
       data: updateData,
     });
 
@@ -72,9 +73,10 @@ export async function PATCH(
 // DELETE /api/admin/genovaai/apikeys/:keyId - Delete API key
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { keyId: string } }
+  { params }: { params: Promise<{ keyId: string }> }
 ) {
   try {
+    const { keyId } = await params;
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -93,7 +95,7 @@ export async function DELETE(
     }
 
     await prisma.geminiAPIKey.delete({
-      where: { id: params.keyId },
+      where: { id: keyId },
     });
 
     return NextResponse.json({

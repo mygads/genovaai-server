@@ -10,7 +10,7 @@ import {
 
 interface AdminLayoutProps {
   children: ReactNode;
-  params: { locale: string };
+  params: Promise<{}>;
 }
 
 const menuItems = [
@@ -21,7 +21,8 @@ const menuItems = [
   { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
 ];
 
-export default function AdminLayout({ children, params }: AdminLayoutProps) {
+export default async function AdminLayout({ children, params }: AdminLayoutProps) {
+  await params; // Consume params for Next.js 16
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-800 transition-colors duration-300">
       {/* Sidebar */}
@@ -39,7 +40,7 @@ export default function AdminLayout({ children, params }: AdminLayoutProps) {
             return (
               <Link
                 key={item.href}
-                href={`/${params.locale}${item.href}`}
+                href={item.href}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-800 hover:text-blue-600 dark:hover:text-blue-400 transition-all mb-1 group"
               >
                 <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" />

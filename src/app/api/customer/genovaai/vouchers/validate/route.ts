@@ -100,11 +100,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Check minimum amount
-    if (voucher.minAmount && parseFloat(amount) < parseFloat(voucher.minAmount)) {
+    if (voucher.minAmount && parseFloat(amount) < parseFloat(voucher.minAmount.toString())) {
       return NextResponse.json(
         {
           success: false,
-          error: `Minimum amount is Rp ${parseFloat(voucher.minAmount).toLocaleString('id-ID')}`,
+          error: `Minimum amount is Rp ${parseFloat(voucher.minAmount.toString()).toLocaleString('id-ID')}`,
         },
         { status: 400 }
       );
@@ -113,12 +113,12 @@ export async function POST(request: NextRequest) {
     // Calculate discount
     let discountAmount = 0;
     if (voucher.discountType === 'percentage') {
-      discountAmount = (parseFloat(amount) * parseFloat(voucher.value)) / 100;
+      discountAmount = (parseFloat(amount) * parseFloat(voucher.value.toString())) / 100;
       if (voucher.maxDiscount) {
-        discountAmount = Math.min(discountAmount, parseFloat(voucher.maxDiscount));
+        discountAmount = Math.min(discountAmount, parseFloat(voucher.maxDiscount.toString()));
       }
     } else {
-      discountAmount = parseFloat(voucher.value);
+      discountAmount = parseFloat(voucher.value.toString());
     }
 
     return NextResponse.json({
