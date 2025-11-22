@@ -44,7 +44,7 @@ export async function testDatabaseConnection() {
     });
 
     console.log(`\n✅ Found ${activeKeys.length} active API key(s) in pool`);
-    activeKeys.forEach((key: any, idx: number) => {
+    activeKeys.forEach((key, idx: number) => {
       console.log(`   ${idx + 1}. Priority ${key.priority} - ${key.user?.name || 'System'} (${key.user?.role || 'admin'})`);
     });
 
@@ -59,8 +59,8 @@ export async function testDatabaseConnection() {
     });
 
     console.log(`\n✅ Found ${templates.length} system prompt template(s)`);
-    templates.forEach((template: any, idx: number) => {
-      console.log(`   ${idx + 1}. ${template.name} (${template.category})`);
+    templates.forEach((template, idx: number) => {
+      console.log(`   ${idx + 1}. ${template.name} (${template.category || 'general'})`);
     });
 
     // Test 4: Vouchers
@@ -76,7 +76,7 @@ export async function testDatabaseConnection() {
     });
 
     console.log(`\n✅ Found ${vouchers.length} active voucher(s)`);
-    vouchers.forEach((voucher: any, idx: number) => {
+    vouchers.forEach((voucher, idx: number) => {
       const bonus = voucher.creditBonus ? `${voucher.creditBonus} credits` : `${voucher.discountType} discount`;
       console.log(`   ${idx + 1}. ${voucher.code} - ${voucher.name} (${bonus})`);
     });
@@ -93,7 +93,7 @@ export async function testDatabaseConnection() {
     });
 
     console.log(`\n✅ Found ${sessions.length} active extension session(s)`);
-    sessions.forEach((session: any, idx: number) => {
+    sessions.forEach((session, idx: number) => {
       console.log(`   ${idx + 1}. ${session.sessionName} - ${session.user.name}`);
       console.log(`      Mode: ${session.requestMode}, Provider: ${session.provider}, Model: ${session.model}`);
       console.log(`      Chat histories: ${session.chatHistories.length}`);
@@ -111,8 +111,8 @@ export async function testDatabaseConnection() {
     });
 
     console.log(`\n✅ Found ${transactions.length} recent transaction(s)`);
-    transactions.forEach((tx: any, idx: number) => {
-      console.log(`   ${idx + 1}. ${tx.type} - ${tx.user.name}: ${tx.credits || 0} credits, Rp ${tx.amount.toString()}`);
+    transactions.forEach((tx, idx: number) => {
+      console.log(`   ${idx + 1}. ${tx.type} - ${tx.user.name}: ${tx.credits || 0} credits, Rp ${tx.amount}`);
     });
 
     console.log('\n🎉 All database tests passed!');

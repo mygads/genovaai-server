@@ -192,25 +192,24 @@ model ChatHistory {
 model KnowledgeFile {
   id            String    @id @default(cuid())
   userId        String
+  sessionId     String?   // Link to extension session
   
   fileName      String
-  fileType      String    // pdf, txt
+  fileType      String    // PDF, TXT, DOCX
   fileSize      Int       // Bytes
   
-  // Storage
-  storageUrl    String?   // If stored in cloud (S3, etc)
-  fileContent   String?   @db.Text // For small text files
-  geminiFileUri String?   // Gemini File API URI for PDFs
+  // Local storage
+  filePath      String    // Local file path (relative to uploads dir)
+  extractedText String?   @db.Text // Extracted text content from PDF/DOCX
   
   // Metadata
   uploadedAt    DateTime  @default(now())
-  expiresAt     DateTime? // Auto-delete after X days
   isActive      Boolean   @default(true)
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId])
-  @@index([expiresAt])
+  @@index([sessionId])
   @@index([isActive])
 }
 
