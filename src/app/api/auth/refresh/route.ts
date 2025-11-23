@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       message: 'Token refreshed successfully',
       data: {
         accessToken: newAccessToken,
-        expiresIn: 900, // 15 minutes in seconds
+        expiresIn: 604800, // 7 days in seconds
       },
     });
     

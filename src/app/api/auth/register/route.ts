@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
         },
         accessToken,
         refreshToken,
-        expiresIn: 900, // 15 minutes in seconds
+        expiresIn: 604800, // 7 days in seconds
       },
     }, { status: 201 });
     
