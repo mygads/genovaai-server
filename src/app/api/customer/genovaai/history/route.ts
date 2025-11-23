@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
               provider: true,
               requestMode: true,
               responseTimeMs: true,
+              status: true,
               createdAt: true,
             },
           },

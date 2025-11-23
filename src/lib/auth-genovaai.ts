@@ -1,9 +1,7 @@
 import 'dotenv/config';
 import { SignJWT, jwtVerify } from 'jose';
 import * as bcrypt from 'bcryptjs';
-import { PrismaClient } from '../generated/prisma';
-
-const prisma = new PrismaClient();
+import { prisma } from './prisma';
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key-min-32-chars-change-in-production');
 const REFRESH_SECRET = new TextEncoder().encode(process.env.REFRESH_SECRET || 'your-refresh-secret-key-min-32-chars-change-in-production');
 

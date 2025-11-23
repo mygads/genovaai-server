@@ -44,9 +44,12 @@ export default function ApiKeysPage() {
         },
       });
       const data = await response.json();
+      console.log('[API Keys Page] Response:', data);
       if (data.success && data.data?.apiKeys) {
+        console.log('[API Keys Page] Keys found:', data.data.apiKeys.length);
         setApiKeys(data.data.apiKeys);
       } else {
+        console.log('[API Keys Page] No keys or error:', data);
         setApiKeys([]);
       }
     } catch (error) {
@@ -93,7 +96,7 @@ export default function ApiKeysPage() {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8090/api/customer/genovaai/apikeys/${id}`, {
+      const response = await fetch(`http://localhost:8090/api/customer/genovaai/apikeys?id=${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

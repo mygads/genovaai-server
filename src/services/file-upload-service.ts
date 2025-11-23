@@ -1,10 +1,8 @@
-import { PrismaClient } from '../generated/prisma';
+import { prisma } from '../lib/prisma';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import mammoth from 'mammoth';
-
-const prisma = new PrismaClient();
 
 // Local storage directory (relative to project root)
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'knowledge-files');

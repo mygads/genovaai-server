@@ -10,6 +10,9 @@ interface ChatHistory {
   question: string;
   answer: string;
   answerMode: string;
+  userPrompt?: string;
+  systemPrompt?: string;
+  knowledgeContext?: string;
   createdAt: string;
   llmRequest: {
     model: string;
@@ -194,8 +197,8 @@ export default function HistoryPage() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
-                        <Badge variant={selectedItem.llmRequest.status === 'success' ? 'default' : 'destructive'}>
-                          {selectedItem.llmRequest.status}
+                        <Badge variant={selectedItem.llmRequest?.status === 'success' ? 'default' : 'destructive'}>
+                          {selectedItem.llmRequest?.status || 'unknown'}
                         </Badge>
                       </div>
                     </div>
@@ -204,6 +207,25 @@ export default function HistoryPage() {
                   <div className="text-xs text-gray-500 dark:text-gray-400 pt-2">
                     {new Date(selectedItem.createdAt).toLocaleString('id-ID')}
                   </div>
+
+                  {/* Additional Details */}
+                  {selectedItem.systemPrompt && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">System Prompt Used</p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                        {selectedItem.systemPrompt}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedItem.knowledgeContext && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Knowledge Context</p>
+                      <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 p-3 rounded max-h-40 overflow-y-auto">
+                        {selectedItem.knowledgeContext}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ) : (

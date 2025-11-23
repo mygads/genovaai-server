@@ -167,6 +167,11 @@ model ChatHistory {
   answer       String   @db.Text
   answerMode   String   // single, short, medium, long - captured at time of answer
   
+  // Request details
+  userPrompt        String?  @db.Text // Original user prompt/question
+  systemPrompt      String?  @db.Text // System prompt used
+  knowledgeContext  String?  @db.Text // Knowledge text sent with request
+  
   // Metadata
   rating       Int?     // User rating 1-5
   feedback     String?  @db.Text

@@ -1,6 +1,4 @@
-import { PrismaClient, Prisma } from '../generated/prisma';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 export interface VoucherValidation {
   valid: boolean;

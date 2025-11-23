@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FaSave, FaPlus, FaTrash, FaCog, FaSync, FaCheckCircle } from 'react-icons/fa';
+import { FaSave, FaPlus, FaTrash, FaCog, FaSync, FaCheckCircle, FaEdit } from 'react-icons/fa';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -24,6 +24,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [userApiKeys, setUserApiKeys] = useState<Array<{ id: string; status: string }>>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [newSession, setNewSession] = useState({
     sessionName: '',
@@ -59,6 +61,7 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchSessions();
     fetchUser();
+    fetchUserApiKeys();
   }, []);
 
   async function fetchUser() {
@@ -72,6 +75,23 @@ export default function SettingsPage() {
     }
   }
 
+  async function fetchUserApiKeys() {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('http://localhost:8090/api/customer/genovaai/apikeys', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.success && data.data?.apiKeys) {
+        setUserApiKeys(data.data.apiKeys);
+      }
+    } catch (error) {
+      console.error('Error fetching API keys:', error);
+    }
+  }
+
   async function fetchSessions() {
     try {
       const token = localStorage.getItem('accessToken');
@@ -81,8 +101,12 @@ export default function SettingsPage() {
         },
       });
       const data = await response.json();
+      console.log('[Fetch Sessions] Response:', data);
       if (data.success) {
-        setSessions(data.data.sessions || []);
+        const sessionsList = data.data.sessions || [];
+        console.log('[Fetch Sessions] Sessions list:', sessionsList);
+        console.log('[Fetch Sessions] Active sessions:', sessionsList.filter((s: ExtensionSession) => s.isActive));
+        setSessions(sessionsList);
       }
     } catch (error) {
       console.error('Error fetching sessions:', error);
@@ -116,34 +140,66 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/sessions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newSession),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSessions([...sessions, data.data]);
-        setNewSession({
-          sessionName: '',
-          requestMode: 'premium',
-          provider: 'openai',
-          model: 'gpt-4o',
-          answerMode: 'medium',
-          systemPrompt: 'You are a helpful AI assistant.',
-          useCustomPrompt: false,
-          customSystemPrompt: '',
+      
+      if (editingId) {
+        // Update existing session
+        const response = await fetch(`http://localhost:8090/api/customer/genovaai/sessions/${editingId}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newSession),
         });
-        setShowAddForm(false);
+        const data = await response.json();
+        if (data.success) {
+          setSessions(sessions.map(s => s.sessionId === editingId ? data.data : s));
+          setNewSession({
+            sessionName: '',
+            requestMode: 'premium',
+            provider: 'openai',
+            model: 'gpt-4o',
+            answerMode: 'medium',
+            systemPrompt: 'You are a helpful AI assistant.',
+            useCustomPrompt: false,
+            customSystemPrompt: '',
+          });
+          setShowAddForm(false);
+          setEditingId(null);
+        } else {
+          alert(data.message || 'Failed to update session');
+        }
       } else {
-        alert(data.message || 'Failed to create session');
+        // Create new session
+        const response = await fetch('http://localhost:8090/api/customer/genovaai/sessions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newSession),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setSessions([...sessions, data.data]);
+          setNewSession({
+            sessionName: '',
+            requestMode: 'premium',
+            provider: 'openai',
+            model: 'gpt-4o',
+            answerMode: 'medium',
+            systemPrompt: 'You are a helpful AI assistant.',
+            useCustomPrompt: false,
+            customSystemPrompt: '',
+          });
+          setShowAddForm(false);
+        } else {
+          alert(data.message || 'Failed to create session');
+        }
       }
     } catch (error) {
-      console.error('Error creating session:', error);
-      alert('Failed to create session');
+      console.error('Error creating/updating session:', error);
+      alert('Failed to save session');
     } finally {
       setSaving(false);
     }
@@ -174,11 +230,28 @@ export default function SettingsPage() {
     }
   }
 
+  function handleEditSession(session: ExtensionSession) {
+    setEditingId(session.sessionId);
+    setNewSession({
+      sessionName: session.sessionName,
+      requestMode: session.requestMode,
+      provider: session.provider || 'gemini',
+      model: session.model || 'gemini-2.5-flash',
+      answerMode: session.answerMode,
+      systemPrompt: (session as any).systemPrompt || 'You are a helpful AI assistant.',
+      useCustomPrompt: (session as any).useCustomPrompt || false,
+      customSystemPrompt: (session as any).customSystemPrompt || '',
+    });
+    setShowAddForm(true);
+  }
+
   async function handleSetActive(sessionId: string) {
     // Set active session by updating it
     setSaving(true);
     try {
       const token = localStorage.getItem('accessToken');
+      console.log('[Set Active] Request:', { sessionId, isActive: true });
+      
       const response = await fetch(`http://localhost:8090/api/customer/genovaai/sessions/${sessionId}`, {
         method: 'PATCH',
         headers: {
@@ -189,10 +262,14 @@ export default function SettingsPage() {
       });
       
       const data = await response.json();
+      console.log('[Set Active] Response:', data);
+      
       if (data.success) {
         // Refresh sessions list
-        fetchSessions();
+        await fetchSessions();
+        alert('Session activated successfully!');
       } else {
+        console.error('[Set Active] Error:', data.error);
         alert(data.error || 'Failed to set active session');
       }
     } catch (error) {
@@ -234,11 +311,11 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* Add Session Form */}
+      {/* Add/Edit Session Form */}
       {showAddForm && (
         <Card>
           <CardHeader>
-            <CardTitle>Create New Session</CardTitle>
+            <CardTitle>{editingId ? 'Edit Session' : 'Create New Session'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -261,7 +338,9 @@ export default function SettingsPage() {
                 </label>
                 <div className="grid grid-cols-3 gap-3">
                   {requestModes.map((mode) => {
-                    const isDisabled = mode.value === 'free_pool' && (!user || parseFloat(user.balance || '0') <= 0);
+                    const isFreePoolDisabled = mode.value === 'free_pool' && (!user || parseFloat(user.balance || '0') <= 0);
+                    const isFreeUserKeyDisabled = mode.value === 'free_user_key' && userApiKeys.length === 0;
+                    const isDisabled = isFreePoolDisabled || isFreeUserKeyDisabled;
                     return (
                       <button
                         key={mode.value}
@@ -286,8 +365,11 @@ export default function SettingsPage() {
                         <div className="font-medium text-gray-900 dark:text-white">{mode.label}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {mode.description}
-                          {mode.value === 'free_pool' && isDisabled && (
+                          {mode.value === 'free_pool' && isFreePoolDisabled && (
                             <span className="block text-red-500 mt-1">Requires balance</span>
+                          )}
+                          {mode.value === 'free_user_key' && isFreeUserKeyDisabled && (
+                            <span className="block text-red-500 mt-1">Add API key first</span>
                           )}
                         </div>
                       </button>
@@ -407,7 +489,20 @@ export default function SettingsPage() {
 
               <div className="flex justify-end gap-3">
                 <button
-                  onClick={() => setShowAddForm(false)}
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setEditingId(null);
+                    setNewSession({
+                      sessionName: '',
+                      requestMode: 'premium',
+                      provider: 'gemini',
+                      model: 'gemini-2.5-flash',
+                      answerMode: 'medium',
+                      systemPrompt: 'You are a helpful AI assistant.',
+                      useCustomPrompt: false,
+                      customSystemPrompt: '',
+                    });
+                  }}
                   className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
                   Cancel
@@ -418,7 +513,7 @@ export default function SettingsPage() {
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors"
                 >
                   <FaSave className="w-4 h-4" />
-                  {saving ? 'Creating...' : 'Create Session'}
+                  {saving ? (editingId ? 'Updating...' : 'Creating...') : (editingId ? 'Update Session' : 'Create Session')}
                 </button>
               </div>
             </div>
@@ -490,12 +585,20 @@ export default function SettingsPage() {
                         <button
                           onClick={() => handleSetActive(session.sessionId)}
                           disabled={saving}
-                          className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                          title="Set as active"
+                          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 rounded-lg transition-colors"
+                          title="Set as active session"
                         >
-                          <FaSync className="w-4 h-4" />
+                          <FaCheckCircle className="w-4 h-4" />
+                          Set Active
                         </button>
                       )}
+                      <button
+                        onClick={() => handleEditSession(session)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                        title="Edit session"
+                      >
+                        <FaEdit className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handleDeleteSession(session.sessionId)}
                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"

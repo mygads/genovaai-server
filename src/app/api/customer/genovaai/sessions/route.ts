@@ -173,9 +173,11 @@ export async function GET(request: NextRequest) {
       const sessions = await prisma.extensionSession.findMany({
         where: {
           userId: payload.userId,
-          isActive: true,
         },
-        orderBy: { lastUsedAt: 'desc' },
+        orderBy: [
+          { isActive: 'desc' }, // Active sessions first
+          { lastUsedAt: 'desc' }
+        ],
         take: limit,
         skip: offset,
         select: {
@@ -186,6 +188,7 @@ export async function GET(request: NextRequest) {
           provider: true,
           model: true,
           answerMode: true,
+          isActive: true,
           lastUsedAt: true,
           createdAt: true,
         },
@@ -194,7 +197,6 @@ export async function GET(request: NextRequest) {
       const total = await prisma.extensionSession.count({
         where: {
           userId: payload.userId,
-          isActive: true,
         },
       });
 

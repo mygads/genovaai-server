@@ -13,6 +13,8 @@ const updateSessionSchema = z.object({
   provider: z.string().optional(),
   model: z.string().optional(),
   isActive: z.boolean().optional(),
+  useCustomPrompt: z.boolean().optional(),
+  customSystemPrompt: z.string().optional(),
 });
 
 /**
@@ -174,7 +176,8 @@ export async function PATCH(
     
     // If setting isActive to true, deactivate all other sessions
     if (data.isActive === true) {
-      await prisma.extensionSession.updateMany({
+      console.log('[Set Active] Deactivating other sessions for user:', payload.userId);
+      const deactivateResult = await prisma.extensionSession.updateMany({
         where: {
           userId: payload.userId,
           NOT: {
@@ -185,23 +188,28 @@ export async function PATCH(
           isActive: false,
         },
       });
+      console.log('[Set Active] Deactivated sessions count:', deactivateResult.count);
     }
     
+    console.log('[Set Active] Updating session:', existingSession.id, 'with data:', data);
     const updated = await prisma.extensionSession.update({
       where: { id: existingSession.id },
       data: {
-        ...(data.sessionName && { sessionName: data.sessionName }),
-        ...(data.systemPrompt && { systemPrompt: data.systemPrompt }),
+        ...(data.sessionName !== undefined && { sessionName: data.sessionName }),
+        ...(data.systemPrompt !== undefined && { systemPrompt: data.systemPrompt }),
         ...(data.knowledgeContext !== undefined && { knowledgeContext: data.knowledgeContext || null }),
-        ...(data.knowledgeFileIds && { knowledgeFileIds: data.knowledgeFileIds }),
-        ...(data.answerMode && { answerMode: data.answerMode }),
-        ...(data.requestMode && { requestMode: data.requestMode }),
+        ...(data.knowledgeFileIds !== undefined && { knowledgeFileIds: data.knowledgeFileIds }),
+        ...(data.answerMode !== undefined && { answerMode: data.answerMode }),
+        ...(data.requestMode !== undefined && { requestMode: data.requestMode }),
         ...(data.provider !== undefined && { provider: data.provider || null }),
         ...(data.model !== undefined && { model: data.model || null }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
+        ...(data.useCustomPrompt !== undefined && { useCustomPrompt: data.useCustomPrompt }),
+        ...(data.customSystemPrompt !== undefined && { customSystemPrompt: data.customSystemPrompt }),
         lastSyncAt: new Date(),
       },
     });
+    console.log('[Set Active] Updated session isActive:', updated.isActive);
 
     return NextResponse.json({
       success: true,
