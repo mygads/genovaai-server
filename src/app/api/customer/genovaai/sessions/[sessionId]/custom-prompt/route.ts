@@ -4,15 +4,15 @@ import { PrismaClient } from '../../../../../../../generated/prisma';
 const prisma = new PrismaClient();
 
 /**
- * PUT /api/customer/genovaai/sessions/[id]/custom-prompt
+ * PUT /api/customer/genovaai/sessions/[sessionId]/custom-prompt
  * Set or update custom system prompt for a session
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ sessionId: string }> }
 ): Promise<NextResponse> {
   try {
-    const { id: sessionId } = await params;
+    const { sessionId } = await params;
     const body = await request.json();
     const { customSystemPrompt, useCustomPrompt } = body;
 
@@ -76,15 +76,15 @@ export async function PUT(
 }
 
 /**
- * DELETE /api/customer/genovaai/sessions/[id]/custom-prompt
+ * DELETE /api/customer/genovaai/sessions/[sessionId]/custom-prompt
  * Remove custom system prompt and revert to default
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ sessionId: string }> }
 ): Promise<NextResponse> {
   try {
-    const { id: sessionId } = await params;
+    const { sessionId } = await params;
 
     // Find session
     const session = await prisma.extensionSession.findUnique({
@@ -133,15 +133,15 @@ export async function DELETE(
 }
 
 /**
- * GET /api/customer/genovaai/sessions/[id]/custom-prompt
+ * GET /api/customer/genovaai/sessions/[sessionId]/custom-prompt
  * Get current custom prompt configuration
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ sessionId: string }> }
 ): Promise<NextResponse> {
   try {
-    const { id: sessionId } = await params;
+    const { sessionId } = await params;
 
     const session = await prisma.extensionSession.findUnique({
       where: { id: sessionId },

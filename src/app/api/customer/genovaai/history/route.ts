@@ -37,43 +37,57 @@ export async function GET(request: NextRequest) {
       where.sessionId = sessionId;
     }
 
-    const history = await prisma.chatHistory.findMany({
-      where,
-      include: {
-        llmRequest: {
-          select: {
-            model: true,
-            provider: true,
-            requestMode: true,
-            responseTimeMs: true,
-            createdAt: true,
+    try {
+      const history = await prisma.chatHistory.findMany({
+        where,
+        include: {
+          llmRequest: {
+            select: {
+              model: true,
+              provider: true,
+              requestMode: true,
+              responseTimeMs: true,
+              createdAt: true,
+            },
+          },
+          session: {
+            select: {
+              sessionName: true,
+              sessionId: true,
+            },
           },
         },
-        session: {
-          select: {
-            sessionName: true,
-            sessionId: true,
-          },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      });
+
+      const total = await prisma.chatHistory.count({
+        where,
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          history,
+          total,
+          limit,
+          offset,
         },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      skip: offset,
-    });
-
-    const total = await prisma.chatHistory.count({
-      where,
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        history,
-        total,
-        limit,
-        offset,
-      },
-    });
+      });
+    } catch (dbError) {
+      console.error('Database query error:', dbError);
+      // Return empty history if query fails
+      return NextResponse.json({
+        success: true,
+        data: {
+          history: [],
+          total: 0,
+          limit,
+          offset,
+        },
+      });
+    }
   } catch (error) {
     console.error('History fetch error:', error);
     return NextResponse.json(

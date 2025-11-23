@@ -127,6 +127,53 @@ export async function PATCH(
     // Update session
     const data = validation.data;
     
+    // Get user data for balance check if updating requestMode
+    if (data.requestMode) {
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { balance: true },
+      });
+
+      if (!user) {
+        return NextResponse.json(
+          { success: false, error: 'User not found' },
+          { status: 404 }
+        );
+      }
+
+      // Validate free_pool mode - requires balance
+      if (data.requestMode === 'free_pool') {
+        const balance = parseFloat(user.balance.toString());
+        if (balance <= 0) {
+          return NextResponse.json(
+            { success: false, error: 'Free Pool mode requires balance. Please top up first.' },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Enforce Gemini provider for free modes
+      if (data.requestMode === 'free_user_key' || data.requestMode === 'free_pool') {
+        if (data.provider && data.provider !== 'gemini') {
+          return NextResponse.json(
+            { success: false, error: 'Free modes only support Gemini provider' },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    // Validate provider restriction if updating provider
+    if (data.provider && data.provider !== 'gemini') {
+      const requestMode = data.requestMode || existingSession.requestMode;
+      if (requestMode === 'free_user_key' || requestMode === 'free_pool') {
+        return NextResponse.json(
+          { success: false, error: 'Free modes only support Gemini provider' },
+          { status: 400 }
+        );
+      }
+    }
+    
     // If setting isActive to true, deactivate all other sessions
     if (data.isActive === true) {
       await prisma.extensionSession.updateMany({

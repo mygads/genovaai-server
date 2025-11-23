@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FaUser, FaEnvelope, FaCalendar, FaSave } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaCalendar, FaSave, FaLock } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -22,6 +22,16 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
+  
+  // Password change states
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -71,6 +81,60 @@ export default function ProfilePage() {
       alert('Failed to update profile');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    setPasswordError('');
+
+    // Validasi
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError('All fields are required');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('http://localhost:8090/api/customer/genovaai/change-password', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Password changed successfully');
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        setShowPasswordForm(false);
+      } else {
+        setPasswordError(data.error || 'Failed to change password');
+      }
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      setPasswordError('Failed to change password');
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -199,6 +263,95 @@ export default function ProfilePage() {
               <p className="text-xs text-green-600 dark:text-green-400 mt-2">Available balance</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Change Password */}
+      <Card className="border-border/50 shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FaLock className="w-5 h-5 text-orange-600" />
+            Change Password
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!showPasswordForm ? (
+            <button
+              onClick={() => setShowPasswordForm(true)}
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+            >
+              Change Password
+            </button>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500"
+                  placeholder="Enter current password"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500"
+                  placeholder="Min. 8 characters"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500"
+                  placeholder="Confirm new password"
+                />
+              </div>
+              
+              {passwordError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-600 dark:text-red-400">{passwordError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleChangePassword}
+                  disabled={changingPassword}
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:bg-gray-400"
+                >
+                  {changingPassword ? 'Changing...' : 'Update Password'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPasswordForm(false);
+                    setPasswordData({
+                      currentPassword: '',
+                      newPassword: '',
+                      confirmPassword: '',
+                    });
+                    setPasswordError('');
+                  }}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

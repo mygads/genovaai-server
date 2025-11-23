@@ -4,10 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:8090": "next dev -p 8090",
     "build": "next build",
     "start": "next start",
     "start:8090": "next start -p 8090",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "tsx prisma/seed-genovaai.ts",
+    "db:reset": "prisma migrate reset --force && tsx prisma/seed-genovaai.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
@@ -39,5 +44,8 @@
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed-genovaai.ts"
   }
 }

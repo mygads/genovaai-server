@@ -32,17 +32,26 @@ export default function HistoryPage() {
   async function fetchHistory() {
     try {
       const token = localStorage.getItem('accessToken');
+      if (!token) {
+        setHistory([]);
+        setLoading(false);
+        return;
+      }
+      
       const response = await fetch('http://localhost:8090/api/customer/genovaai/history?limit=50', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
       const data = await response.json();
-      if (data.success) {
+      if (data.success && data.data?.history) {
         setHistory(data.data.history);
+      } else {
+        setHistory([]);
       }
     } catch (error) {
       console.error('Failed to fetch history:', error);
+      setHistory([]);
     } finally {
       setLoading(false);
     }
@@ -63,7 +72,7 @@ export default function HistoryPage() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">Your conversation history with GenovaAI</p>
       </div>
 
-      {history.length === 0 ? (
+      {!history || history.length === 0 ? (
         <Card className="border-border/50 shadow-sm">
           <CardContent className="py-12">
             <div className="text-center">

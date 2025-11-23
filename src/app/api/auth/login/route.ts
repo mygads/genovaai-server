@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
 import { 
   comparePassword, 
   generateAccessToken, 
@@ -8,8 +8,6 @@ import {
   generateDeviceFingerprint 
 } from '@/lib/auth-genovaai';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email format'),
@@ -135,7 +133,5 @@ export async function POST(request: NextRequest) {
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error',
     }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }

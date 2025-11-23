@@ -32,17 +32,26 @@ export default function ApiKeysPage() {
   async function fetchApiKeys() {
     try {
       const token = localStorage.getItem('accessToken');
+      if (!token) {
+        setApiKeys([]);
+        setLoading(false);
+        return;
+      }
+      
       const response = await fetch('http://localhost:8090/api/customer/genovaai/apikeys', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
       const data = await response.json();
-      if (data.success) {
+      if (data.success && data.data?.apiKeys) {
         setApiKeys(data.data.apiKeys);
+      } else {
+        setApiKeys([]);
       }
     } catch (error) {
       console.error('Failed to fetch API keys:', error);
+      setApiKeys([]);
     } finally {
       setLoading(false);
     }
@@ -197,7 +206,7 @@ export default function ApiKeysPage() {
       )}
 
       {/* API Keys List */}
-      {apiKeys.length === 0 ? (
+      {!apiKeys || apiKeys.length === 0 ? (
         <Card className="border-border/50 shadow-sm">
           <CardContent className="py-12">
             <div className="text-center">

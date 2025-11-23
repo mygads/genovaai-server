@@ -27,15 +27,12 @@ export async function GET(request: NextRequest) {
 
     const keys = await ApiKeyPoolService.getUserApiKeys(payload.userId);
     
-    // Mask API keys
-    const maskedKeys = keys.map(key => ({
-      ...key,
-      apiKey: ApiKeyPoolService.maskApiKey(key.apiKey),
-    }));
-
+    // Return with apiKeys wrapper
     return NextResponse.json({
       success: true,
-      data: maskedKeys,
+      data: {
+        apiKeys: keys,
+      },
     });
   } catch (error) {
     console.error('API keys fetch error:', error);
@@ -70,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { apiKey } = body;
+    const { apiKey, name } = body;
 
     if (!apiKey) {
       return NextResponse.json(
@@ -79,7 +76,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await ApiKeyPoolService.addUserApiKey(payload.userId, apiKey);
+    const result = await ApiKeyPoolService.addUserApiKey(payload.userId, apiKey, name);
     
     if (!result.success) {
       return NextResponse.json(

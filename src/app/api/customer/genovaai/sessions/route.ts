@@ -53,6 +53,48 @@ export async function POST(request: NextRequest) {
 
     const data = validation.data;
 
+    // Get user data for balance check
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { balance: true },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Validate free_pool mode - requires balance
+    if (data.requestMode === 'free_pool') {
+      const balance = parseFloat(user.balance.toString());
+      if (balance <= 0) {
+        return NextResponse.json(
+          { success: false, error: 'Free Pool mode requires balance. Please top up first.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Enforce Gemini provider for free modes
+    let provider = data.provider || 'gemini';
+    let model = data.model || 'gemini-2.5-flash';
+    
+    if (data.requestMode === 'free_user_key' || data.requestMode === 'free_pool') {
+      if (provider !== 'gemini') {
+        return NextResponse.json(
+          { success: false, error: 'Free modes only support Gemini provider' },
+          { status: 400 }
+        );
+      }
+      // Ensure valid Gemini model
+      const validGeminiModels = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash-lite', 'gemini-3.0-pro-preview'];
+      if (!validGeminiModels.includes(model)) {
+        model = 'gemini-2.5-flash'; // Default to flash if invalid
+      }
+    }
+
     // Use provided systemPrompt or default
     const systemPrompt = data.systemPrompt || 'You are a helpful quiz assistant.';
 
@@ -70,8 +112,8 @@ export async function POST(request: NextRequest) {
         knowledgeFileIds: data.knowledgeFileIds,
         answerMode: data.answerMode,
         requestMode: data.requestMode,
-        provider: data.provider || 'gemini',
-        model: data.model || 'gemini-2.5-flash',
+        provider: provider,
+        model: model,
         customSystemPrompt: data.customSystemPrompt || null,
         useCustomPrompt: data.useCustomPrompt,
         isActive: true,
@@ -81,9 +123,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
+        id: session.id,
         sessionId: session.sessionId,
         sessionName: session.sessionName,
+        requestMode: session.requestMode,
+        provider: session.provider,
+        model: session.model,
+        answerMode: session.answerMode,
+        isActive: session.isActive,
         createdAt: session.createdAt,
+        lastUsedAt: session.lastUsedAt,
       },
     }, { status: 201 });
   } catch (error) {
@@ -124,43 +173,57 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    const sessions = await prisma.extensionSession.findMany({
-      where: {
-        userId: payload.userId,
-        isActive: true,
-      },
-      orderBy: { lastUsedAt: 'desc' },
-      take: limit,
-      skip: offset,
-      select: {
-        id: true,
-        sessionId: true,
-        sessionName: true,
-        requestMode: true,
-        provider: true,
-        model: true,
-        answerMode: true,
-        lastUsedAt: true,
-        createdAt: true,
-      },
-    });
+    try {
+      const sessions = await prisma.extensionSession.findMany({
+        where: {
+          userId: payload.userId,
+          isActive: true,
+        },
+        orderBy: { lastUsedAt: 'desc' },
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          sessionId: true,
+          sessionName: true,
+          requestMode: true,
+          provider: true,
+          model: true,
+          answerMode: true,
+          lastUsedAt: true,
+          createdAt: true,
+        },
+      });
 
-    const total = await prisma.extensionSession.count({
-      where: {
-        userId: payload.userId,
-        isActive: true,
-      },
-    });
+      const total = await prisma.extensionSession.count({
+        where: {
+          userId: payload.userId,
+          isActive: true,
+        },
+      });
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        sessions,
-        total,
-        limit,
-        offset,
-      },
-    });
+      return NextResponse.json({
+        success: true,
+        data: {
+          sessions,
+          total,
+          limit,
+          offset,
+        },
+      });
+    } catch (dbError) {
+      console.error('Database query error:', dbError);
+      // Return empty sessions if query fails
+      return NextResponse.json({
+        success: true,
+        data: {
+          sessions: [],
+          total: 0,
+          limit,
+          offset,
+        },
+      });
+    }
   } catch (error) {
     console.error('List sessions error:', error);
     return NextResponse.json(

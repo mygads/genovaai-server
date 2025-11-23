@@ -15,13 +15,13 @@ export interface TokenPayload {
 }
 
 /**
- * Generate Access Token (short-lived: 15 minutes)
+ * Generate Access Token (long-lived: 7 days)
  */
 export async function generateAccessToken(payload: TokenPayload): Promise<string> {
   const token = await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('15m')
+    .setExpirationTime('7d')
     .sign(JWT_SECRET);
   
   return token;

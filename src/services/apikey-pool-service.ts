@@ -164,11 +164,12 @@ export class ApiKeyPoolService {
    */
   static async addUserApiKey(
     userId: string,
-    apiKey: string
+    apiKey: string,
+    name?: string
   ): Promise<{ success: boolean; error?: string }> {
-    // Validate API key format (basic check)
-    if (!apiKey || apiKey.length < 20) {
-      return { success: false, error: 'Invalid API key format' };
+    // Validate API key format (basic check for Gemini API keys)
+    if (!apiKey || !apiKey.startsWith('AIza') || apiKey.length < 30) {
+      return { success: false, error: 'Invalid Gemini API key format. Key must start with AIza' };
     }
 
     // Check if key already exists
@@ -177,13 +178,17 @@ export class ApiKeyPoolService {
     });
 
     if (existing) {
-      return { success: false, error: 'API key already exists' };
+      return { success: false, error: 'API key already exists in the system' };
     }
 
     // Test API key by making a simple request
+    console.log('Testing API key validity...');
     const isValid = await this.testApiKey(apiKey);
     if (!isValid) {
-      return { success: false, error: 'API key is invalid or inactive' };
+      return { 
+        success: false, 
+        error: 'API key test failed. Please check: 1) Key is correct, 2) API is enabled in Google Cloud Console, 3) Key has Generative Language API access' 
+      };
     }
 
     // Add to database
@@ -191,6 +196,7 @@ export class ApiKeyPoolService {
       data: {
         userId,
         apiKey,
+        name: name || 'My Gemini Key',
         status: 'active',
         priority: 100, // User keys priority
       },
@@ -204,19 +210,27 @@ export class ApiKeyPoolService {
    */
   static async testApiKey(apiKey: string): Promise<boolean> {
     try {
+      // Use gemini-2.0-flash-lite for testing (smallest model)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: 'test' }] }],
+            contents: [{ parts: [{ text: 'Hi' }] }],
           }),
         }
       );
 
-      return response.ok;
-    } catch {
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('API key test failed:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('API key test error:', error);
       return false;
     }
   }
@@ -229,8 +243,10 @@ export class ApiKeyPoolService {
       where: { userId },
       select: {
         id: true,
+        name: true,
         apiKey: true, // Will be masked in API response
         status: true,
+        priority: true,
         lastUsedAt: true,
         requestsToday: true,
         dailyQuotaDate: true,

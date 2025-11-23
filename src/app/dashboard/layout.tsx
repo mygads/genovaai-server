@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { FaHome, FaUser, FaCreditCard, FaHistory, FaKey, FaCog, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa';
+import { setupAuthInterceptor } from '@/lib/auth-interceptor';
 
 export default function DashboardLayout({
   children,
@@ -16,38 +17,102 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
+    // Setup global auth interceptor
+    setupAuthInterceptor(() => {
+      router.push('/login');
+    });
+    
     checkAuth();
+    
+    // Set up periodic token check (every 5 minutes)
+    const interval = setInterval(() => {
+      checkTokenValidity();
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
-  async function checkAuth() {
+  async function checkTokenValidity() {
     const token = localStorage.getItem('accessToken');
+    
     if (!token) {
-      router.push('/signin');
+      handleLogout();
       return;
     }
 
+    // Try a simple API call to check if token is still valid
     try {
       const response = await fetch('http://localhost:8090/api/customer/genovaai/profile', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
+      
+      if (response.status === 401) {
+        // Token expired or invalid
+        console.log('Token expired, logging out...');
+        handleLogout();
+      }
+    } catch (error) {
+      console.error('Token validation failed:', error);
+    }
+  }
+
+  async function checkAuth() {
+    const token = localStorage.getItem('accessToken');
+    const userData = localStorage.getItem('user');
+    
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    // Use cached user data first
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData));
+      } catch (e) {
+        console.error('Failed to parse user data:', e);
+      }
+    }
+
+    // Try to fetch fresh profile data
+    try {
+      const response = await fetch('http://localhost:8090/api/customer/genovaai/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.status === 401) {
+        // Token expired or invalid
+        console.log('Token expired during auth check');
+        handleLogout();
+        return;
+      }
+      
       const data = await response.json();
       if (data.success) {
         setUser(data.data);
-      } else {
-        router.push('/signin');
+        localStorage.setItem('user', JSON.stringify(data.data));
+      } else if (!userData) {
+        // Only redirect if we don't have cached data
+        handleLogout();
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      router.push('/signin');
+      // Don't redirect if we have cached user data
+      if (!userData) {
+        handleLogout();
+      }
     }
   }
 
   function handleLogout() {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    router.push('/signin');
+    localStorage.removeItem('user');
+    router.push('/login');
   }
 
   const menuItems = [

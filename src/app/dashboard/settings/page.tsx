@@ -23,20 +23,24 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   const [newSession, setNewSession] = useState({
     sessionName: '',
     requestMode: 'premium',
-    provider: 'openai',
-    model: 'gpt-4o',
+    provider: 'gemini',
+    model: 'gemini-2.5-flash',
     answerMode: 'medium',
     systemPrompt: 'You are a helpful AI assistant.',
+    useCustomPrompt: false,
+    customSystemPrompt: '',
   });
 
   const providers = [
-    { value: 'openai', label: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'] },
-    { value: 'anthropic', label: 'Anthropic', models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'] },
-    { value: 'google', label: 'Google', models: ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'] },
+    { value: 'openai', label: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'], requiresPremium: true },
+    { value: 'anthropic', label: 'Anthropic', models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'], requiresPremium: true },
+    { value: 'google', label: 'Google', models: ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'], requiresPremium: true },
+    { value: 'gemini', label: 'Gemini', models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash-lite'], requiresPremium: false },
   ];
 
   const requestModes = [
@@ -54,7 +58,19 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchSessions();
+    fetchUser();
   }, []);
+
+  async function fetchUser() {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData));
+      } catch (e) {
+        console.error('Failed to parse user:', e);
+      }
+    }
+  }
 
   async function fetchSessions() {
     try {
@@ -81,6 +97,22 @@ export default function SettingsPage() {
       return;
     }
 
+    // Validate free_pool mode
+    if (newSession.requestMode === 'free_pool') {
+      const balance = parseFloat(user?.balance || '0');
+      if (balance <= 0) {
+        alert('Free Pool mode requires balance. Please top up first.');
+        return;
+      }
+    }
+
+    // Force Gemini for free modes
+    if (newSession.requestMode === 'free_user_key' || newSession.requestMode === 'free_pool') {
+      if (newSession.provider !== 'gemini') {
+        setNewSession({ ...newSession, provider: 'gemini', model: 'gemini-2.5-flash' });
+      }
+    }
+
     setSaving(true);
     try {
       const token = localStorage.getItem('accessToken');
@@ -102,6 +134,8 @@ export default function SettingsPage() {
           model: 'gpt-4o',
           answerMode: 'medium',
           systemPrompt: 'You are a helpful AI assistant.',
+          useCustomPrompt: false,
+          customSystemPrompt: '',
         });
         setShowAddForm(false);
       } else {
@@ -130,9 +164,9 @@ export default function SettingsPage() {
       });
       const data = await response.json();
       if (data.success) {
-        setSessions(sessions.filter(s => s.id !== sessionId));
+        setSessions(sessions.filter(s => s.sessionId !== sessionId));
       } else {
-        alert(data.message || 'Failed to delete session');
+        alert(data.error || 'Failed to delete session');
       }
     } catch (error) {
       console.error('Error deleting session:', error);
@@ -159,7 +193,7 @@ export default function SettingsPage() {
         // Refresh sessions list
         fetchSessions();
       } else {
-        alert(data.message || 'Failed to set active session');
+        alert(data.error || 'Failed to set active session');
       }
     } catch (error) {
       console.error('Error setting active session:', error);
@@ -226,20 +260,39 @@ export default function SettingsPage() {
                   Request Mode
                 </label>
                 <div className="grid grid-cols-3 gap-3">
-                  {requestModes.map((mode) => (
-                    <button
-                      key={mode.value}
-                      onClick={() => setNewSession({ ...newSession, requestMode: mode.value })}
-                      className={`p-4 rounded-lg border-2 transition-all text-left ${
-                        newSession.requestMode === mode.value
-                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                      }`}
-                    >
-                      <div className="font-medium text-gray-900 dark:text-white">{mode.label}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{mode.description}</div>
-                    </button>
-                  ))}
+                  {requestModes.map((mode) => {
+                    const isDisabled = mode.value === 'free_pool' && (!user || parseFloat(user.balance || '0') <= 0);
+                    return (
+                      <button
+                        key={mode.value}
+                        onClick={() => {
+                          if (!isDisabled) {
+                            const newMode = mode.value as any;
+                            setNewSession({ 
+                              ...newSession, 
+                              requestMode: newMode,
+                              provider: (newMode === 'free_user_key' || newMode === 'free_pool') ? 'gemini' : newSession.provider,
+                              model: (newMode === 'free_user_key' || newMode === 'free_pool') ? 'gemini-2.5-flash' : newSession.model,
+                            });
+                          }
+                        }}
+                        disabled={isDisabled}
+                        className={`p-4 rounded-lg border-2 transition-all text-left ${
+                          newSession.requestMode === mode.value
+                            ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <div className="font-medium text-gray-900 dark:text-white">{mode.label}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {mode.description}
+                          {mode.value === 'free_pool' && isDisabled && (
+                            <span className="block text-red-500 mt-1">Requires balance</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -275,14 +328,22 @@ export default function SettingsPage() {
                         model: provider?.models[0] || '',
                       });
                     }}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={newSession.requestMode === 'free_user_key' || newSession.requestMode === 'free_pool'}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
                   >
-                    {providers.map((provider) => (
-                      <option key={provider.value} value={provider.value}>
-                        {provider.label}
-                      </option>
-                    ))}
+                    {providers
+                      .filter(p => newSession.requestMode === 'premium' || !p.requiresPremium)
+                      .map((provider) => (
+                        <option key={provider.value} value={provider.value}>
+                          {provider.label}
+                        </option>
+                      ))}
                   </select>
+                  {(newSession.requestMode === 'free_user_key' || newSession.requestMode === 'free_pool') && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Only Gemini available for free modes
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -303,6 +364,45 @@ export default function SettingsPage() {
                       ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Custom Prompt Section */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    System Prompt Configuration
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newSession.useCustomPrompt}
+                      onChange={(e) => setNewSession({ ...newSession, useCustomPrompt: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Use Custom Prompt</span>
+                  </label>
+                </div>
+                
+                {newSession.useCustomPrompt ? (
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      Write your own system prompt to customize AI behavior
+                    </label>
+                    <textarea
+                      value={newSession.customSystemPrompt}
+                      onChange={(e) => setNewSession({ ...newSession, customSystemPrompt: e.target.value })}
+                      placeholder="Example: You are a professional quiz assistant specialized in biology. Always provide detailed explanations with scientific terms..."
+                      rows={4}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <strong>Default Prompt:</strong> AI will use the standard prompt optimized for your selected answer mode ({newSession.answerMode}).
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3">
@@ -355,7 +455,7 @@ export default function SettingsPage() {
           {sessions.map((session) => {
             const provider = providers.find(p => p.value === session.provider);
             return (
-              <Card key={session.id}>
+              <Card key={session.sessionId || session.id} className={session.isActive ? 'border-2 border-green-500 bg-green-50 dark:bg-green-900/10' : 'border border-gray-200 dark:border-gray-700'}>
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
@@ -388,7 +488,7 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-2">
                       {!session.isActive && (
                         <button
-                          onClick={() => handleSetActive(session.id)}
+                          onClick={() => handleSetActive(session.sessionId)}
                           disabled={saving}
                           className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                           title="Set as active"
@@ -397,7 +497,7 @@ export default function SettingsPage() {
                         </button>
                       )}
                       <button
-                        onClick={() => handleDeleteSession(session.id)}
+                        onClick={() => handleDeleteSession(session.sessionId)}
                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                         title="Delete session"
                       >

@@ -21,47 +21,6 @@ export default function CustomerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
-  useEffect(() => {
-    fetchUserData();
-    fetchStats();
-  }, []);
-
-  async function fetchUserData() {
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setUser(data.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-    }
-  }
-
-  async function fetchStats() {
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setStats(data.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">

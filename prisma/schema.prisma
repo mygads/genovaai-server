@@ -220,6 +220,7 @@ model KnowledgeFile {
 model GeminiAPIKey {
   id                String    @id @default(cuid())
   userId            String?   // NULL = admin key
+  name              String?   // Optional friendly name for the key
   apiKey            String    @unique
   
   // Status tracking
