@@ -6,6 +6,11 @@ import { z } from 'zod';
 const askSchema = z.object({
   sessionId: z.string().min(1, 'Session ID is required'), // REQUIRED: Session ID
   question: z.string().min(1, 'Question is required'),    // REQUIRED: Question
+  fewShotExamples: z.array(z.object({                     // OPTIONAL: Few-shot examples
+    question: z.string(),
+    answer: z.string(),
+  })).optional(),
+  outputFormat: z.string().optional(),                     // OPTIONAL: Output format specification
 });
 
 /**
@@ -45,6 +50,8 @@ export async function POST(request: NextRequest) {
       userId: payload.userId,
       sessionId: validation.data.sessionId,
       question: validation.data.question,
+      fewShotExamples: validation.data.fewShotExamples,
+      outputFormat: validation.data.outputFormat,
     });
 
     if (!response.success) {
@@ -60,6 +67,8 @@ export async function POST(request: NextRequest) {
         answer: response.answer,
         requestId: response.requestId,
         creditsDeducted: response.creditsDeducted,
+        cached: response.cached,
+        tokensUsed: response.tokensUsed,
       },
     });
   } catch (error) {

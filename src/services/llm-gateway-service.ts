@@ -2,6 +2,13 @@ import { ApiKeyPoolService } from './apikey-pool-service';
 import { CreditService } from './credit-service';
 import { FileUploadService } from './file-upload-service';
 import { PrismaClient } from '../generated/prisma';
+import {
+  buildSystemPrompt,
+  formatKnowledgeContext,
+  formatUserQuestion,
+  getThinkingConfig,
+  getCachingConfig,
+} from '../lib/prompt-templates';
 
 const prisma = new PrismaClient();
 
@@ -9,6 +16,8 @@ export interface LLMRequest {
   userId: string;
   sessionId: string; // Extension session ID - all config comes from DB
   question: string;
+  fewShotExamples?: Array<{question: string; answer: string}>; // Optional few-shot examples
+  outputFormat?: string; // Optional format specification (bulleted, table, json, etc)
 }
 
 export interface LLMResponse {
@@ -18,6 +27,22 @@ export interface LLMResponse {
   requestId?: string;
   tokensUsed?: number;
   creditsDeducted?: number;
+  cached?: boolean; // Whether context was cached
+}
+
+// Context caching configuration
+interface CachingConfig {
+  enabled: boolean;
+  minTokens: number; // Minimum tokens to enable caching
+  ttlSeconds: number; // Cache TTL
+}
+
+// Thinking configuration for Gemini models
+interface ThinkingConfig {
+  // For Gemini 2.5 models
+  thinkingBudget?: number; // 0 to disable, 8192 for default thinking
+  // For Gemini 3 models
+  thinkingLevel?: 'low' | 'high'; // 'low' for faster, 'high' for better reasoning
 }
 
 interface FullRequest extends LLMRequest {
@@ -28,6 +53,8 @@ interface FullRequest extends LLMRequest {
   knowledgeContext: string | null;
   fileIds: string[];
   answerMode: string;
+  cachingConfig?: CachingConfig;
+  thinkingConfig?: ThinkingConfig;
 }
 
 export class LLMGatewayService {
@@ -60,40 +87,61 @@ export class LLMGatewayService {
     });
 
     // Fetch knowledge files if any are linked
-    let combinedKnowledge = session.knowledgeContext || '';
+    const manualKnowledge = session.knowledgeContext || null;
+    let fileContents: string | null = null;
     
     if (session.knowledgeFileIds && session.knowledgeFileIds.length > 0) {
       const files = await FileUploadService.getSessionFiles(session.sessionId, request.userId);
       
       if (files.length > 0) {
-        const fileContents = files
+        fileContents = files
           .map((file, index) => {
             const content = file.extractedText || '';
-            return `\n\n--- File ${index + 1}: ${file.fileName} (${file.fileType}) ---\n${content}`;
+            return `File ${index + 1}: ${file.fileName} (${file.fileType})\n${content}`;
           })
-          .join('\n');
-        
-        // Combine manual knowledge context with file contents
-        if (combinedKnowledge) {
-          combinedKnowledge += '\n\n--- Uploaded Files ---' + fileContents;
-        } else {
-          combinedKnowledge = '--- Uploaded Files ---' + fileContents;
-        }
+          .join('\n\n---\n\n');
       }
     }
+
+    // Build system prompt based on session configuration
+    let systemPrompt: string;
+    if (session.useCustomPrompt && session.customSystemPrompt) {
+      // Use custom prompt directly
+      systemPrompt = session.customSystemPrompt;
+    } else {
+      // Generate structured prompt based on answer mode
+      systemPrompt = buildSystemPrompt(
+        session.answerMode as 'single' | 'short' | 'medium' | 'long'
+      );
+    }
+
+    // Format knowledge context (combines manual context + file contents)
+    const formattedKnowledge = formatKnowledgeContext(manualKnowledge, fileContents);
+    const knowledgeLength = formattedKnowledge.length;
+
+    // Get caching and thinking configurations
+    const model = session.model || 'gemini-2.5-flash';
+    const answerMode = session.answerMode as 'single' | 'short' | 'medium' | 'long';
+    
+    const cachingConfig = getCachingConfig(model, knowledgeLength);
+    const thinkingConfig = getThinkingConfig(model, answerMode);
 
     // Build full request with session data
     const fullRequest: FullRequest = {
       userId: request.userId,
       sessionId: request.sessionId,
       question: request.question,
+      fewShotExamples: request.fewShotExamples,
+      outputFormat: request.outputFormat,
       mode: session.requestMode as 'free_user_key' | 'free_pool' | 'premium',
       provider: session.provider || 'gemini',
-      model: session.model || 'gemini-1.5-flash',
-      systemPrompt: session.systemPrompt,
-      knowledgeContext: combinedKnowledge,
+      model: model,
+      systemPrompt: systemPrompt,
+      knowledgeContext: formattedKnowledge || null,
       fileIds: session.knowledgeFileIds,
       answerMode: session.answerMode,
+      cachingConfig: cachingConfig,
+      thinkingConfig: thinkingConfig,
     };
 
     // Validate user can make request
@@ -151,7 +199,11 @@ export class LLMGatewayService {
         request.model,
         request.systemPrompt,
         request.knowledgeContext,
-        request.question
+        request.question,
+        request.cachingConfig,
+        request.thinkingConfig,
+        request.fewShotExamples,
+        request.outputFormat
       );
 
       // Record usage
@@ -160,6 +212,7 @@ export class LLMGatewayService {
       return {
         success: true,
         answer,
+        cached: request.cachingConfig?.enabled || false,
       };
     } catch (error) {
       // Handle errors and mark key if needed
@@ -195,7 +248,11 @@ export class LLMGatewayService {
           request.model,
           request.systemPrompt,
           request.knowledgeContext,
-          request.question
+          request.question,
+          request.cachingConfig,
+          request.thinkingConfig,
+          request.fewShotExamples,
+          request.outputFormat
         );
 
         // Record usage
@@ -204,6 +261,7 @@ export class LLMGatewayService {
         return {
           success: true,
           answer,
+          cached: request.cachingConfig?.enabled || false,
         };
       } catch (error) {
         // Handle error and try next key
@@ -271,33 +329,69 @@ export class LLMGatewayService {
   }
 
   /**
-   * Call Gemini API
+   * Call Gemini API with advanced prompt design and caching
    */
   private static async callGemini(
     apiKey: string,
     model: string,
     systemPrompt: string,
     knowledge: string | null,
-    question: string
+    question: string,
+    cachingConfig?: CachingConfig,
+    thinkingConfig?: ThinkingConfig,
+    fewShotExamples?: Array<{question: string; answer: string}>,
+    outputFormat?: string
   ): Promise<string> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
+    // Build structured prompt parts following best practices
     const parts: Array<{ text: string }> = [];
+    
+    // 1. Knowledge context first (important: context before question for better reasoning)
     if (knowledge) {
-      parts.push({ text: `Knowledge Base:\n${knowledge}\n\n` });
+      parts.push({ text: knowledge });
     }
-    parts.push({ text: `Question: ${question}` });
+
+    // 2. Format user question with optional few-shot examples and output format
+    const formattedQuestion = formatUserQuestion(question, fewShotExamples, outputFormat);
+    parts.push({ text: formattedQuestion });
+
+    // Generation config with thinking configuration
+    const generationConfig: Record<string, unknown> = {
+      temperature: model.includes('gemini-3') ? 1.0 : 0.7, // Gemini 3 uses default 1.0
+      maxOutputTokens: 2048,
+    };
+
+    // Apply thinking config based on model
+    if (thinkingConfig) {
+      if (model.includes('gemini-3') && thinkingConfig.thinkingLevel) {
+        generationConfig.thinkingConfig = { thinkingLevel: thinkingConfig.thinkingLevel };
+      } else if (model.includes('gemini-2.5') && thinkingConfig.thinkingBudget !== undefined) {
+        generationConfig.thinkingConfig = { thinkingBudget: thinkingConfig.thinkingBudget };
+      }
+    }
+
+    // System instruction (role, instructions, constraints, output format)
+    const systemInstruction: Record<string, unknown> = { parts: [{ text: systemPrompt }] };
+    
+    // Enable caching for large contexts (reduces costs for repeated requests)
+    if (cachingConfig?.enabled && knowledge) {
+      const estimatedTokens = Math.floor(knowledge.length / 4); // Rough estimate: 1 token ≈ 4 chars
+      if (estimatedTokens >= cachingConfig.minTokens) {
+        systemInstruction.cachedContent = {
+          content: knowledge,
+          ttl: `${cachingConfig.ttlSeconds}s`,
+        };
+      }
+    }
 
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
+        systemInstruction,
         contents: [{ parts }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        },
+        generationConfig,
       }),
     });
 
@@ -374,13 +468,69 @@ export class LLMGatewayService {
   }
 
   /**
+   * Get caching configuration based on model and context size
+   */
+  private static getCachingConfig(model: string, knowledgeContext: string | null): CachingConfig | undefined {
+    if (!knowledgeContext) return undefined;
+
+    const estimatedTokens = Math.floor(knowledgeContext.length / 4);
+    
+    // Minimum token limits for caching (from documentation)
+    const minTokensByModel: Record<string, number> = {
+      'gemini-3-pro-preview': 2048,
+      'gemini-3-pro-image-preview': 2048,
+      'gemini-2.5-pro': 4096,
+      'gemini-2.5-flash': 1024,
+      'gemini-2.5-flash-lite': 1024,
+      'gemini-2.0-flash-exp': 1024,
+      'gemini-1.5-pro': 4096,
+      'gemini-1.5-flash': 1024,
+    };
+
+    const minTokens = minTokensByModel[model] || 2048;
+
+    // Enable caching if context is large enough
+    if (estimatedTokens >= minTokens) {
+      return {
+        enabled: true,
+        minTokens,
+        ttlSeconds: 3600, // 1 hour TTL
+      };
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Get thinking configuration based on model
+   */
+  private static getThinkingConfig(model: string): ThinkingConfig | undefined {
+    // Gemini 3 models use thinkingLevel
+    if (model.includes('gemini-3')) {
+      return {
+        thinkingLevel: 'high', // Default to high for better reasoning
+      };
+    }
+
+    // Gemini 2.5 models use thinkingBudget
+    if (model.includes('gemini-2.5')) {
+      return {
+        thinkingBudget: 8192, // Enable thinking by default
+      };
+    }
+
+    // Other models don't support thinking
+    return undefined;
+  }
+
+  /**
    * Log LLM request with session context
    */
   private static async logRequest(
     request: FullRequest,
     response: LLMResponse,
     durationMs: number,
-    sessionDbId: string
+    _sessionDbId: string
   ): Promise<void> {
     try {
       const llmRequest = await prisma.lLMRequest.create({

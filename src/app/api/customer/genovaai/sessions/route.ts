@@ -7,13 +7,16 @@ const prisma = new PrismaClient();
 
 const createSessionSchema = z.object({
   sessionName: z.string().min(1),
-  systemPrompt: z.string().default('You are a helpful quiz assistant.'),
+  systemPrompt: z.string().optional(), // Optional - will use dynamic prompt if not provided
   knowledgeContext: z.string().optional(),
   knowledgeFileIds: z.array(z.string()).default([]),
   answerMode: z.enum(['single', 'short', 'medium', 'long']).default('short'),
   requestMode: z.enum(['free_user_key', 'free_pool', 'premium']).default('free_pool'),
   provider: z.string().optional(),
   model: z.string().optional(),
+  // Custom prompt support
+  customSystemPrompt: z.string().optional(),
+  useCustomPrompt: z.boolean().default(false),
 });
 
 /**
@@ -50,6 +53,9 @@ export async function POST(request: NextRequest) {
 
     const data = validation.data;
 
+    // Use provided systemPrompt or default
+    const systemPrompt = data.systemPrompt || 'You are a helpful quiz assistant.';
+
     // Generate unique sessionId
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
@@ -59,13 +65,15 @@ export async function POST(request: NextRequest) {
         userId: payload.userId,
         sessionId,
         sessionName: data.sessionName,
-        systemPrompt: data.systemPrompt,
+        systemPrompt: systemPrompt,
         knowledgeContext: data.knowledgeContext || null,
         knowledgeFileIds: data.knowledgeFileIds,
         answerMode: data.answerMode,
         requestMode: data.requestMode,
-        provider: data.provider || null,
-        model: data.model || null,
+        provider: data.provider || 'gemini',
+        model: data.model || 'gemini-2.5-flash',
+        customSystemPrompt: data.customSystemPrompt || null,
+        useCustomPrompt: data.useCustomPrompt,
         isActive: true,
       },
     });

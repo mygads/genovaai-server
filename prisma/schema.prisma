@@ -293,6 +293,10 @@ model ExtensionSession {
   knowledgeContext String?  @db.Text // Optional knowledge base text
   knowledgeFileIds String[] // References to KnowledgeFile
   
+  // Custom Prompt Settings
+  customSystemPrompt String?  @db.Text // User-defined custom prompt that replaces systemPrompt
+  useCustomPrompt    Boolean  @default(false) // When true, use customSystemPrompt instead of systemPrompt
+  
   // Answer & Request Settings
   answerMode       String   @default("short") // single, short, medium, long
   requestMode      String   @default("free_pool") // free_user_key, free_pool, premium
