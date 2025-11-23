@@ -17,6 +17,7 @@ export default function CreateVoucherPage() {
     maxDiscount: '',
     minAmount: '',
     maxUses: '',
+    allowMultipleUsePerUser: false,
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
     creditBonus: '',
@@ -37,6 +38,7 @@ export default function CreateVoucherPage() {
       maxDiscount: formData.maxDiscount ? parseFloat(formData.maxDiscount) : undefined,
       minAmount: formData.minAmount ? parseFloat(formData.minAmount) : undefined,
       maxUses: formData.maxUses ? parseInt(formData.maxUses) : undefined,
+      allowMultipleUsePerUser: formData.allowMultipleUsePerUser,
       startDate: formData.startDate,
       endDate: formData.endDate || undefined,
       creditBonus: formData.creditBonus ? parseInt(formData.creditBonus) : undefined,
@@ -208,6 +210,28 @@ export default function CreateVoucherPage() {
                   onChange={(e) => setFormData({ ...formData, maxUses: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                 />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Total number of times this voucher can be used (leave empty for unlimited)
+                </p>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.allowMultipleUsePerUser}
+                    onChange={(e) => setFormData({ ...formData, allowMultipleUsePerUser: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Allow Multiple Use Per User
+                    </span>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      If checked, users can use this voucher multiple times
+                    </p>
+                  </div>
+                </label>
               </div>
 
               <div>

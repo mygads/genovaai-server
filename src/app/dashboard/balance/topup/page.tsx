@@ -243,7 +243,7 @@ export default function TopUpPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FaTicketAlt className="w-5 h-5 text-purple-600" />
-            Apply Voucher Code
+            Check Voucher Code (Optional)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -259,19 +259,31 @@ export default function TopUpPage() {
               onClick={handleApplyVoucher}
               className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
-              Apply
+              Check
             </button>
           </div>
           {voucherApplied && (
             <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
               <p className="text-sm text-green-600 dark:text-green-400">
-                ✓ Voucher applied: <strong>{voucherApplied.name}</strong>
+                ✓ Voucher valid: <strong>{voucherApplied.name}</strong>
               </p>
-              <p className="text-sm text-green-600 dark:text-green-400">
-                Discount: Rp {discount.toLocaleString('id-ID')}
-              </p>
+              {discount > 0 && (
+                <p className="text-sm text-green-600 dark:text-green-400">
+                  Discount: Rp {discount.toLocaleString('id-ID')}
+                </p>
+              )}
+              {voucherApplied.creditBonus > 0 && (
+                <p className="text-sm text-green-600 dark:text-green-400">
+                  Bonus: +{voucherApplied.creditBonus} credits
+                </p>
+              )}
             </div>
           )}
+          <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              💡 <strong>Tip:</strong> Check if your voucher is valid before proceeding with payment. The voucher will be applied and used when payment is completed.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

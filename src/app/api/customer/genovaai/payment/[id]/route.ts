@@ -25,16 +25,35 @@ export async function GET(
         id: id,
         userId,
       },
-      include: {
-        creditTransactions: true,
-      },
     });
 
     if (!payment) {
-      return NextResponse.json({ success: false, message: 'Payment not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Payment not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: payment });
+    // Check if payment belongs to user
+    if (payment.userId !== userId) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        id: payment.id,
+        amount: payment.amount.toString(),
+        method: payment.method,
+        status: payment.status,
+        type: payment.type,
+        creditAmount: payment.creditAmount,
+        paymentUrl: payment.paymentUrl,
+        reference: payment.reference,
+        externalId: payment.externalId,
+        expiresAt: payment.expiresAt?.toISOString(),
+        createdAt: payment.createdAt.toISOString(),
+        qrString: (payment.gatewayResponse as any)?.qrString || null,
+        gatewayResponse: payment.gatewayResponse,
+      },
+    });
   } catch (error) {
     console.error('Error fetching payment:', error);
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });

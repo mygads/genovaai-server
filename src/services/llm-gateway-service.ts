@@ -24,6 +24,8 @@ export interface LLMResponse {
   error?: string;
   requestId?: string;
   tokensUsed?: number;
+  inputTokens?: number;
+  outputTokens?: number;
   creditsDeducted?: number;
   cached?: boolean; // Whether context was cached
 }
@@ -192,7 +194,7 @@ export class LLMGatewayService {
 
     // Make request to Gemini
     try {
-      const answer = await this.callGemini(
+      const result = await this.callGemini(
         userKey.apiKey,
         request.model,
         request.systemPrompt,
@@ -209,7 +211,10 @@ export class LLMGatewayService {
 
       return {
         success: true,
-        answer,
+        answer: result.text,
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
+        tokensUsed: result.totalTokens,
         cached: request.cachingConfig?.enabled || false,
       };
     } catch (error) {
@@ -241,7 +246,7 @@ export class LLMGatewayService {
       }
 
       try {
-        const answer = await this.callGemini(
+        const result = await this.callGemini(
           keyInfo.key,
           request.model,
           request.systemPrompt,
@@ -258,7 +263,10 @@ export class LLMGatewayService {
 
         return {
           success: true,
-          answer,
+          answer: result.text,
+          inputTokens: result.inputTokens,
+          outputTokens: result.outputTokens,
+          tokensUsed: result.totalTokens,
           cached: request.cachingConfig?.enabled || false,
         };
       } catch (error) {
@@ -339,7 +347,7 @@ export class LLMGatewayService {
     thinkingConfig?: ThinkingConfig,
     fewShotExamples?: Array<{question: string; answer: string}>,
     outputFormat?: string
-  ): Promise<string> {
+  ): Promise<{ text: string; inputTokens?: number; outputTokens?: number; totalTokens?: number }> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     // Build structured prompt parts following best practices
@@ -399,7 +407,18 @@ export class LLMGatewayService {
     }
 
     const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
+    const text = data.candidates[0].content.parts[0].text;
+    
+    // Extract token usage if available
+    const usageMetadata = data.usageMetadata;
+    const tokenInfo = {
+      text,
+      inputTokens: usageMetadata?.promptTokenCount,
+      outputTokens: usageMetadata?.candidatesTokenCount,
+      totalTokens: usageMetadata?.totalTokenCount,
+    };
+    
+    return tokenInfo;
   }
 
   /**
@@ -544,6 +563,9 @@ export class LLMGatewayService {
           answer: response.answer,
           status: response.success ? 'success' : 'failed',
           errorMessage: response.error,
+          inputTokens: response.inputTokens || null,
+          outputTokens: response.outputTokens || null,
+          totalTokens: response.tokensUsed || null,
           costCredits: response.creditsDeducted || 0,
           responseTimeMs: durationMs,
         },

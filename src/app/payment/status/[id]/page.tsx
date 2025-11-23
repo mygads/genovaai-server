@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 export default function PaymentStatusPage() {
   const params = useParams();
   const router = useRouter();
-  const paymentId = params.paymentId as string;
+  const paymentId = params.id as string;
 
   const [payment, setPayment] = useState<{
     id: string;

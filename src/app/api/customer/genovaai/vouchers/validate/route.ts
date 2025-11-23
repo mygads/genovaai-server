@@ -130,6 +130,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
+        voucherId: voucher.id,
         id: voucher.id,
         code: voucher.code,
         name: voucher.name,

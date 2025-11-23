@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 export default function PaymentSuccessPage() {
   const params = useParams();
-  const paymentId = params.paymentId as string;
+  const paymentId = params.id as string;
 
   const [payment, setPayment] = useState<{
     id: string;

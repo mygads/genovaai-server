@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { PaymentGatewayFactory } from '@/lib/payment-gateway/factory';
 import { z } from 'zod';
+import { Prisma } from '@/generated/prisma';
 
 const createPaymentSchema = z.object({
   type: z.enum(['balance', 'credit']),
   amount: z.number().min(10000, 'Minimum amount is Rp 10,000'),
   credits: z.number().optional(),
-  paymentMethod: z.string(),
+  paymentMethod: z.string().default('duitku_SP'), // Shopee Pay QRIS - available in sandbox
   voucherCode: z.string().optional(),
 });
 
@@ -104,98 +106,90 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Calculate payment fees
-    const paymentFees: Record<string, number> = {
-      'BCA': 4000,
-      'BNI': 4000,
-      'MANDIRI': 4000,
-      'BRI': 4000,
-      'PERMATA': 4000,
-      'ALFAMART': 2500,
-      'INDOMARET': 2500,
-      'OVO': 0,
-      'DANA': 0,
-      'SHOPEEPAY': 0,
-      'LINKAJA': 0,
-      'QRIS': 0,
-    };
-
-    const paymentFee = paymentFees[paymentMethod] || 0;
-    
     // Apply voucher discount
     let discountAmount = 0;
     if (voucherData) {
       discountAmount = voucherData.discountAmount || 0;
     }
     
-    const totalAmount = Math.max(0, amount - discountAmount + paymentFee);
+    const finalAmount = Math.max(10000, amount - discountAmount);
 
-    // Generate merchant order ID
-    const merchantOrderId = `GENO-${Date.now()}-${userId.substring(0, 8)}`;
+    // Initialize payment gateway
+    const gateway = PaymentGatewayFactory.createGateway('duitku');
+    if (!gateway) {
+      return NextResponse.json(
+        { success: false, message: 'Payment gateway not available' },
+        { status: 500 }
+      );
+    }
 
-    // Mock payment URL (replace with actual Duitku integration)
-    const paymentUrl = `https://sandbox.duitku.com/payment/${merchantOrderId}`;
-    const vaNumber = paymentMethod.includes('VA') || ['BCA', 'BNI', 'MANDIRI', 'BRI', 'PERMATA'].includes(paymentMethod)
-      ? `88077${Math.floor(Math.random() * 10000000000)}`
-      : null;
-    const qrString = paymentMethod === 'QRIS' ? `qris-${merchantOrderId}` : null;
+    // Create payment request
+    const paymentRequest = {
+      userId: userId,
+      transactionType: type,
+      amount: finalAmount,
+      credits: credits,
+      currency: 'IDR' as const,
+      paymentMethodCode: paymentMethod,
+      customerInfo: {
+        id: userId,
+        name: user.name || 'Customer',
+        email: user.email,
+        phone: user.phone || undefined,
+      },
+      voucherCode: voucherCode,
+      callbackUrl: `${process.env.DUITKU_CALLBACK_URL || 'http://localhost:8090'}/api/payment/callback`,
+      returnUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8090'}/dashboard/payment/success`,
+    };
 
-    // Create payment record with voucher usage in transaction
-    const payment = await prisma.$transaction(async (tx) => {
-      const newPayment = await tx.payment.create({
-        data: {
-          userId,
-          amount: totalAmount,
-          method: paymentMethod,
-          type,
-          status: 'pending',
-          expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours
-          externalId: merchantOrderId,
-          paymentUrl,
-          reference: vaNumber || qrString || merchantOrderId,
-          gatewayProvider: 'duitku',
-          gatewayResponse: {
-            merchantOrderId,
-            paymentUrl,
-            vaNumber,
-            qrString,
-            voucherCode: voucherCode || null,
-            discount: discountAmount,
-            originalAmount: amount,
-          },
-          creditAmount: type === 'credit' ? credits : null,
+    // Create payment via gateway
+    const gatewayResponse = await gateway.createPayment(paymentRequest);
+
+    if (!gatewayResponse.success) {
+      console.error('[PAYMENT] Gateway error:', gatewayResponse.error);
+      return NextResponse.json(
+        { success: false, message: gatewayResponse.error || 'Payment creation failed' },
+        { status: 400 }
+      );
+    }
+
+    // Store payment in database
+    const payment = await prisma.payment.create({
+      data: {
+        userId,
+        amount: new Prisma.Decimal(finalAmount),
+        method: paymentMethod,
+        type,
+        status: 'pending',
+        expiresAt: gatewayResponse.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000),
+        externalId: gatewayResponse.externalId || gatewayResponse.paymentId,
+        paymentUrl: gatewayResponse.paymentUrl,
+        reference: gatewayResponse.externalId || gatewayResponse.paymentId,
+        gatewayProvider: 'duitku',
+        gatewayResponse: {
+          ...gatewayResponse.gatewayResponse,
+          voucherCode: voucherCode || null,
+          voucherId: voucherData?.voucherId || null,
+          discount: discountAmount,
+          creditBonus: voucherData?.creditBonus || 0,
+          balanceBonus: voucherData?.balanceBonus || 0,
+          originalAmount: amount,
         },
-      });
-      
-      // Create voucher usage record if voucher was used
-      if (voucherData && voucherCode) {
-        await tx.voucherUsage.create({
-          data: {
-            voucherId: voucherData.voucherId,
-            userId,
-            discountAmount,
-            creditsBonus: voucherData.creditBonus || 0,
-            balanceBonus: voucherData.balanceBonus || 0,
-            usedAt: new Date(),
-          },
-        });
-      }
-      
-      return newPayment;
+        creditAmount: type === 'credit' ? credits : null,
+      },
     });
 
     return NextResponse.json({
       success: true,
       data: {
         paymentId: payment.id,
-        paymentUrl: payment.paymentUrl,
-        vaNumber,
-        qrString,
+        paymentUrl: gatewayResponse.paymentUrl,
+        vaNumber: gatewayResponse.vaNumber,
+        qrString: gatewayResponse.qrString,
         reference: payment.reference,
-        amount: totalAmount,
+        amount: finalAmount,
         originalAmount: amount,
         discount: discountAmount,
-        paymentFee,
         expiresAt: payment.expiresAt,
         voucherApplied: voucherData ? {
           code: voucherCode,

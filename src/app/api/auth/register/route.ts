@@ -103,28 +103,38 @@ export async function POST(request: NextRequest) {
                'unknown';
     const deviceInfo = generateDeviceFingerprint(userAgent, ip);
     
-    // Generate tokens
+    // Create session first with temporary token
+    const tempSession = await prisma.userSession.create({
+      data: {
+        userId: user.id,
+        token: 'temp', // Temporary, will be updated
+        deviceInfo,
+        ipAddress: ip,
+        userAgent,
+        isActive: true,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      },
+    });
+    
+    // Generate tokens with correct sessionId
     const tokenPayload = {
       userId: user.id,
       email: user.email,
       role: user.role,
-      sessionId: '', // Will be set after session creation
+      sessionId: tempSession.id,
     };
     
+    const accessToken = await generateAccessToken(tokenPayload);
     const refreshToken = await generateRefreshToken(tokenPayload);
     
-    // Create session in database
-    const sessionId = await createUserSession(
-      user.id,
-      refreshToken,
-      deviceInfo,
-      ip,
-      userAgent
-    );
+    // Update session with actual refresh token
+    await prisma.userSession.update({
+      where: { id: tempSession.id },
+      data: { token: refreshToken },
+    });
     
-    // Update token payload with sessionId
-    tokenPayload.sessionId = sessionId;
-    const accessToken = await generateAccessToken(tokenPayload);
+    console.log('✅ Registration successful for user:', user.email);
+    console.log('🔑 Session created:', tempSession.id);
     
     // Return success response
     return NextResponse.json({

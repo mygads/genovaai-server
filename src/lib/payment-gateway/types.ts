@@ -17,9 +17,12 @@ export interface PaymentMethodConfig {
 }
 
 export interface PaymentRequest {
-  transactionId: string
+  userId: string
+  transactionType: 'balance' | 'credit'
+  transactionId?: string
   amount: number
-  currency: 'idr'
+  credits?: number
+  currency: 'IDR' | 'idr'
   paymentMethodCode: string
   customerInfo: {
     id: string
@@ -27,6 +30,7 @@ export interface PaymentRequest {
     email: string
     phone?: string
   }
+  voucherCode?: string
   callbackUrl?: string
   returnUrl?: string
 }
@@ -36,6 +40,8 @@ export interface PaymentResponse {
   paymentId: string
   paymentUrl?: string
   externalId?: string
+  vaNumber?: string
+  qrString?: string
   status: 'pending' | 'paid' | 'failed' | 'expired'
   expiresAt?: Date
   gatewayResponse?: Record<string, unknown>
@@ -45,7 +51,7 @@ export interface PaymentResponse {
 export interface PaymentCallback {
   gatewayProvider: string
   externalId: string
-  transactionId: string
+  paymentId: string
   status: 'pending' | 'paid' | 'failed' | 'expired'
   amount: number
   paymentDate?: Date
@@ -64,4 +70,5 @@ export interface PaymentGateway {
   // Configuration
   getAvailablePaymentMethods(): Promise<PaymentMethodConfig[]>
   validateConfiguration(): Promise<boolean>
+  validateCallback(callbackData: Record<string, unknown>): Promise<boolean>
 }

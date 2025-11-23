@@ -31,7 +31,6 @@ export default function BalancePage() {
   const [exchanging, setExchanging] = useState(false);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [voucherCode, setVoucherCode] = useState('');
-  const [voucherType, setVoucherType] = useState<'balance' | 'credit'>('balance');
   const [validatingVoucher, setValidatingVoucher] = useState(false);
 
   useEffect(() => {
@@ -153,7 +152,7 @@ export default function BalancePage() {
     return Math.floor(num / exchangeRate);
   }
 
-  async function handleCheckVoucher() {
+  async function handleRedeemVoucher() {
     if (!voucherCode.trim()) {
       alert('Please enter voucher code');
       return;
@@ -162,7 +161,7 @@ export default function BalancePage() {
     setValidatingVoucher(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/vouchers/validate', {
+      const response = await fetch('http://localhost:8090/api/customer/genovaai/vouchers/redeem', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -170,28 +169,34 @@ export default function BalancePage() {
         },
         body: JSON.stringify({
           code: voucherCode,
-          amount: 0, // No amount check for preview
-          type: voucherType,
         }),
       });
 
       const data = await response.json();
       if (data.success) {
-        const bonus = voucherType === 'balance' 
-          ? `Rp ${(data.data.balanceBonus || 0).toLocaleString('id-ID')}` 
-          : `${data.data.creditBonus || 0} credits`;
-        const discount = data.data.discountAmount > 0 
-          ? `Discount: Rp ${data.data.discountAmount.toLocaleString('id-ID')}` 
-          : '';
-        alert(`✅ Valid voucher!\n${discount}${discount && bonus ? '\n' : ''}${bonus ? `Bonus: ${bonus}` : ''}\n\nUse this code when making a payment.`);
+        const { creditsAdded, balanceAdded, voucherName } = data.data;
+        let message = `✅ Voucher redeemed successfully!\n\n"${voucherName}"\n\n`;
+        
+        if (creditsAdded > 0) {
+          message += `🎉 You received: ${creditsAdded} credits`;
+        }
+        if (balanceAdded > 0) {
+          message += `🎉 You received: Rp ${balanceAdded.toLocaleString('id-ID')}`;
+        }
+        
+        alert(message);
         setShowVoucherModal(false);
         setVoucherCode('');
+        
+        // Refresh balance and transactions
+        fetchBalance();
+        fetchTransactions();
       } else {
-        alert(data.error || 'Invalid voucher code');
+        alert(data.error || 'Failed to redeem voucher');
       }
     } catch (error) {
-      console.error('Voucher validation error:', error);
-      alert('Failed to validate voucher');
+      console.error('Voucher redeem error:', error);
+      alert('Failed to redeem voucher');
     } finally {
       setValidatingVoucher(false);
     }
@@ -218,7 +223,7 @@ export default function BalancePage() {
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             <FaPlus className="w-4 h-4" />
-            Check Voucher
+            Redeem Voucher
           </button>
           <button
             onClick={() => setShowExchangeModal(true)}
@@ -432,13 +437,13 @@ export default function BalancePage() {
         </div>
       )}
 
-      {/* Voucher Check Modal */}
+      {/* Voucher Redeem Modal */}
       {showVoucherModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Check Voucher</h3>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Redeem Voucher</h3>
                 <button
                   onClick={() => {
                     setShowVoucherModal(false);
@@ -453,23 +458,6 @@ export default function BalancePage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Voucher Type
-                  </label>
-                  <select
-                    value={voucherType}
-                    onChange={(e) => setVoucherType(e.target.value as 'balance' | 'credit')}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="balance">Balance Voucher (for top-up)</option>
-                    <option value="credit">Credit Voucher (for buy credits)</option>
-                  </select>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Select the voucher type you want to check
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Voucher Code
                   </label>
                   <input
@@ -480,13 +468,13 @@ export default function BalancePage() {
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent uppercase"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Enter the voucher code to check its validity
+                    Enter the voucher code to redeem
                   </p>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    💡 <strong>Tip:</strong> Checking a voucher will not use it. Use the code when making a payment to apply the discount or bonus.
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    🎁 <strong>Note:</strong> System will automatically detect voucher type (balance or credit). The bonus will be immediately added to your account after redemption.
                   </p>
                 </div>
 
@@ -501,11 +489,11 @@ export default function BalancePage() {
                     Cancel
                   </button>
                   <button
-                    onClick={handleCheckVoucher}
+                    onClick={handleRedeemVoucher}
                     disabled={validatingVoucher || !voucherCode.trim()}
                     className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors font-medium"
                   >
-                    {validatingVoucher ? 'Checking...' : 'Check Voucher'}
+                    {validatingVoucher ? 'Redeeming...' : 'Redeem Voucher'}
                   </button>
                 </div>
               </div>

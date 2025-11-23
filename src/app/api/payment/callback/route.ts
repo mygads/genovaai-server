@@ -82,8 +82,10 @@ export async function POST(request: NextRequest) {
         // Get voucher metadata from gatewayResponse if exists
         const metadata = payment.gatewayResponse as any;
         const voucherId = metadata?.voucherId || null;
+        const voucherCode = metadata?.voucherCode || null;
         const creditBonus = metadata?.creditBonus || 0;
         const balanceBonus = metadata?.balanceBonus || 0;
+        const discountAmount = metadata?.discount || 0;
 
         // Add balance or credits
         if (payment.type === 'balance') {
@@ -100,18 +102,7 @@ export async function POST(request: NextRequest) {
             await CreditService.addBalance(
               payment.userId,
               balanceBonus,
-              `Voucher balance bonus`
-            );
-          }
-
-          // Record voucher usage
-          if (voucherId) {
-            await VoucherService.applyVoucher(
-              voucherId,
-              payment.userId,
-              metadata.discountAmount || 0,
-              undefined,
-              balanceBonus
+              `Voucher balance bonus (${voucherCode})`
             );
           }
         } else if (payment.type === 'credit') {
@@ -130,19 +121,39 @@ export async function POST(request: NextRequest) {
             await CreditService.addCredits(
               payment.userId,
               creditBonus,
-              `Voucher credit bonus`
+              `Voucher credit bonus (${voucherCode})`
             );
           }
+        }
 
-          // Record voucher usage
-          if (voucherId) {
-            await VoucherService.applyVoucher(
-              voucherId,
-              payment.userId,
-              metadata.discountAmount || 0,
-              creditBonus,
-              undefined
-            );
+        // Record voucher usage if voucher was applied
+        if (voucherId && voucherCode) {
+          // Check if voucher usage already exists (prevent duplicate)
+          const existingUsage = await tx.voucherUsage.findFirst({
+            where: {
+              voucherId: voucherId,
+              userId: payment.userId,
+            },
+          });
+
+          if (!existingUsage) {
+            await tx.voucherUsage.create({
+              data: {
+                voucherId: voucherId,
+                userId: payment.userId,
+                discountAmount: discountAmount,
+                creditsBonus: creditBonus || null,
+                balanceBonus: balanceBonus || null,
+              },
+            });
+
+            // Increment voucher usage count
+            await tx.voucher.update({
+              where: { id: voucherId },
+              data: {
+                usedCount: { increment: 1 },
+              },
+            });
           }
         }
       });
