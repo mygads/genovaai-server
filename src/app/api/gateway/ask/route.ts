@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { prisma } from '@/lib/prisma';
 import { LLMGatewayService } from '@/services/llm-gateway-service';
 import { z } from 'zod';
 
 const askSchema = z.object({
-  sessionId: z.string().min(1, 'Session ID is required'), // REQUIRED: Session ID
+  sessionId: z.string().optional(), // OPTIONAL: Jika tidak ada, gunakan default/active session
   question: z.string().min(1, 'Question is required'),    // REQUIRED: Question
   fewShotExamples: z.array(z.object({                     // OPTIONAL: Few-shot examples
     question: z.string(),
@@ -45,10 +46,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Jika sessionId tidak diberikan, cari active session user
+    let sessionId = validation.data.sessionId;
+    if (!sessionId) {
+      const activeSession = await prisma.extensionSession.findFirst({
+        where: {
+          userId: payload.userId,
+          isActive: true,
+        },
+        orderBy: {
+          lastUsedAt: 'desc',
+        },
+      });
+      
+      if (!activeSession) {
+        return NextResponse.json(
+          { success: false, error: 'No active session found. Please create a session at /dashboard/settings' },
+          { status: 400 }
+        );
+      }
+      
+      sessionId = activeSession.sessionId;
+    }
+
     // Process request - gateway will fetch session config from DB
     const response = await LLMGatewayService.processRequest({
       userId: payload.userId,
-      sessionId: validation.data.sessionId,
+      sessionId: sessionId,
       question: validation.data.question,
       fewShotExamples: validation.data.fewShotExamples,
       outputFormat: validation.data.outputFormat,
