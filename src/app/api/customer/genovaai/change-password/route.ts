@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken, comparePassword, hashPassword } from '@/lib/auth-genovaai';
-import { PrismaClient } from '@/generated/prisma';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 /**
  * POST /api/customer/genovaai/change-password
@@ -90,3 +88,4 @@ export async function POST(request: NextRequest) {
     await prisma.$disconnect();
   }
 }
+

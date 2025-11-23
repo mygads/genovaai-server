@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
 import { ApiKeyPoolService } from '@/services/apikey-pool-service';
-import { PrismaClient } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
 
 const addApiKeySchema = z.object({
   apiKey: z.string().min(1),
@@ -124,3 +122,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+

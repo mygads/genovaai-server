@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
-
-const prisma = new PrismaClient();
 
 export async function GET(
   request: NextRequest,

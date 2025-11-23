@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
-import { PrismaClient, Prisma } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
+import { Prisma } from '@/generated/prisma';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
 
 const updateVoucherSchema = z.object({
   name: z.string().optional(),

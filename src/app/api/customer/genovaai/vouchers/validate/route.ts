@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
-import { PrismaClient } from '@/generated/prisma';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // POST /api/customer/genovaai/vouchers/validate
 export async function POST(request: NextRequest) {
@@ -141,3 +139,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DuitkuService } from '@/services/duitku-service';
 import { CreditService } from '@/services/credit-service';
 import { VoucherService } from '@/services/voucher-service';
-import { PrismaClient } from '@/generated/prisma';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 /**
  * POST /api/payment/callback
@@ -172,3 +170,4 @@ export async function POST(request: NextRequest) {
     await prisma.$disconnect();
   }
 }
+

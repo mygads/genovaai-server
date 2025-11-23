@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
 import { DuitkuService } from '@/services/duitku-service';
 import { VoucherService } from '@/services/voucher-service';
-import { PrismaClient } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
 
 const createPaymentSchema = z.object({
   type: z.enum(['balance', 'credit']),
@@ -167,3 +165,5 @@ export async function POST(request: NextRequest) {
     await prisma.$disconnect();
   }
 }
+
+
