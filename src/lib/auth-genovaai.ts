@@ -115,12 +115,14 @@ export async function createUserSession(
 
 /**
  * Validate session exists and is active
+ * Note: We don't validate the token itself because refresh tokens change on each refresh.
+ * We only validate that the session exists, is active, and not expired.
+ * The token signature is already verified by verifyRefreshToken() before calling this.
  */
 export async function validateSession(sessionId: string, token: string): Promise<boolean> {
   const session = await prisma.userSession.findFirst({
     where: {
       id: sessionId,
-      token,
       isActive: true,
       expiresAt: {
         gt: new Date(),

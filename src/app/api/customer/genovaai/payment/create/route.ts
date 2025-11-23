@@ -11,6 +11,19 @@ const createPaymentSchema = z.object({
   voucherCode: z.string().optional(),
 });
 
+interface VoucherValidation {
+  success: boolean;
+  data?: {
+    voucherId: string;
+    type: 'balance' | 'credit';
+    discountType: 'percentage' | 'fixed';
+    discountAmount: number;
+    creditBonus: number;
+    balanceBonus: number;
+  };
+  error?: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -47,6 +60,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
 
+    // Validate voucher if provided
+    let voucherData: VoucherValidation['data'] | null = null;
+    if (voucherCode) {
+      try {
+        const voucherResponse = await fetch('http://localhost:8090/api/customer/genovaai/vouchers/validate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            code: voucherCode,
+            amount,
+            type,
+          }),
+        });
+        
+        const voucherResult: VoucherValidation = await voucherResponse.json();
+        
+        if (!voucherResult.success) {
+          return NextResponse.json(
+            { success: false, message: voucherResult.error || 'Invalid voucher' },
+            { status: 400 }
+          );
+        }
+        
+        // Verify voucher type matches payment type
+        if (voucherResult.data?.type !== type) {
+          return NextResponse.json(
+            { success: false, message: `Voucher is for ${voucherResult.data?.type} only, not ${type}` },
+            { status: 400 }
+          );
+        }
+        
+        voucherData = voucherResult.data;
+      } catch (error) {
+        console.error('Voucher validation error:', error);
+        return NextResponse.json(
+          { success: false, message: 'Failed to validate voucher' },
+          { status: 500 }
+        );
+      }
+    }
+
     // Calculate payment fees
     const paymentFees: Record<string, number> = {
       'BCA': 4000,
@@ -64,7 +121,14 @@ export async function POST(request: NextRequest) {
     };
 
     const paymentFee = paymentFees[paymentMethod] || 0;
-    const totalAmount = amount + paymentFee;
+    
+    // Apply voucher discount
+    let discountAmount = 0;
+    if (voucherData) {
+      discountAmount = voucherData.discountAmount || 0;
+    }
+    
+    const totalAmount = Math.max(0, amount - discountAmount + paymentFee);
 
     // Generate merchant order ID
     const merchantOrderId = `GENO-${Date.now()}-${userId.substring(0, 8)}`;
@@ -76,27 +140,48 @@ export async function POST(request: NextRequest) {
       : null;
     const qrString = paymentMethod === 'QRIS' ? `qris-${merchantOrderId}` : null;
 
-    // Create payment record
-    const payment = await prisma.payment.create({
-      data: {
-        userId,
-        amount: totalAmount,
-        method: paymentMethod,
-        type,
-        status: 'pending',
-        expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours
-        externalId: merchantOrderId,
-        paymentUrl,
-        reference: vaNumber || qrString || merchantOrderId,
-        gatewayProvider: 'duitku',
-        gatewayResponse: {
-          merchantOrderId,
+    // Create payment record with voucher usage in transaction
+    const payment = await prisma.$transaction(async (tx) => {
+      const newPayment = await tx.payment.create({
+        data: {
+          userId,
+          amount: totalAmount,
+          method: paymentMethod,
+          type,
+          status: 'pending',
+          expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours
+          externalId: merchantOrderId,
           paymentUrl,
-          vaNumber,
-          qrString,
+          reference: vaNumber || qrString || merchantOrderId,
+          gatewayProvider: 'duitku',
+          gatewayResponse: {
+            merchantOrderId,
+            paymentUrl,
+            vaNumber,
+            qrString,
+            voucherCode: voucherCode || null,
+            discount: discountAmount,
+            originalAmount: amount,
+          },
+          creditAmount: type === 'credit' ? credits : null,
         },
-        creditAmount: type === 'credit' ? credits : null,
-      },
+      });
+      
+      // Create voucher usage record if voucher was used
+      if (voucherData && voucherCode) {
+        await tx.voucherUsage.create({
+          data: {
+            voucherId: voucherData.voucherId,
+            userId,
+            discountAmount,
+            creditsBonus: voucherData.creditBonus || 0,
+            balanceBonus: voucherData.balanceBonus || 0,
+            usedAt: new Date(),
+          },
+        });
+      }
+      
+      return newPayment;
     });
 
     return NextResponse.json({
@@ -109,8 +194,14 @@ export async function POST(request: NextRequest) {
         reference: payment.reference,
         amount: totalAmount,
         originalAmount: amount,
+        discount: discountAmount,
         paymentFee,
         expiresAt: payment.expiresAt,
+        voucherApplied: voucherData ? {
+          code: voucherCode,
+          creditBonus: voucherData.creditBonus,
+          balanceBonus: voucherData.balanceBonus,
+        } : null,
       },
     });
   } catch (error) {
