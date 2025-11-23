@@ -416,3 +416,22 @@ model VoucherUsage {
   @@index([userId])
   @@index([usedAt])
 }
+
+// ============================================
+// SYSTEM CONFIGURATION
+// ============================================
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique // e.g., "balance_to_credit_rate"
+  value     String   // Store as string, parse as needed
+  type      String   @default("number") // number, string, boolean, json
+  category  String   @default("general") // general, payment, credits, etc.
+  label     String   // Human-readable label
+  description String? @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([category])
+  @@index([key])
+}

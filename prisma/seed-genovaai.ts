@@ -156,13 +156,40 @@ async function seedGenovaAI() {
       {
         code: 'CREDIT20',
         name: 'Credit Bonus 20',
-        description: '20 credits gratis untuk top-up pertama',
+        description: '20 credits gratis untuk pembelian credit',
         type: 'credit',
         discountType: 'fixed',
         value: 0,
         creditBonus: 20,
         balanceBonus: 0,
-        maxUses: 1,
+        maxUses: 100,
+        allowMultipleUsePerUser: false,
+        isActive: true,
+        startDate: new Date(),
+      },
+      {
+        code: 'BALANCE10K',
+        name: 'Balance Bonus 10K',
+        description: 'Bonus Rp 10.000 untuk top-up balance',
+        type: 'balance',
+        discountType: 'fixed',
+        value: 0,
+        balanceBonus: 10000,
+        minAmount: 50000,
+        maxUses: 100,
+        isActive: true,
+        startDate: new Date(),
+      },
+      {
+        code: 'CREDITFIRST',
+        name: 'First Credit 30% Off',
+        description: 'Diskon 30% pembelian credit pertama',
+        type: 'credit',
+        discountType: 'percentage',
+        value: 30,
+        minAmount: 100000,
+        maxDiscount: 50000,
+        maxUses: 100,
         allowMultipleUsePerUser: false,
         isActive: true,
         startDate: new Date(),
@@ -171,8 +198,12 @@ async function seedGenovaAI() {
     skipDuplicates: true,
   });
 
-  console.log('✅ Test vouchers created (3 vouchers)');
-  console.log(`   - WELCOME10: 10 free credits`);
+  console.log('✅ Test vouchers created (5 vouchers)');
+  console.log(`   - WELCOME10: 10 credit bonus (credit)`);
+  console.log(`   - TOPUP50K: 50% balance discount (balance)`);
+  console.log(`   - CREDIT20: 20 credit bonus (credit)`);
+  console.log(`   - BALANCE10K: Rp 10K balance bonus (balance)`);
+  console.log(`   - CREDITFIRST: 30% credit discount (credit)`);
   console.log(`   - TOPUP50K: 50% discount on balance top-up`);
   console.log(`   - CREDIT20: 20 free credits bonus`);
 
@@ -322,6 +353,28 @@ Faktor yang mempengaruhi:
   console.log('   - Replace admin API keys with real Gemini keys');
   console.log('   - Add user Gemini API key for free_user_key mode testing');
   console.log('   - Customer already has 10 credits for premium testing');
+
+  // 5. Create system configuration
+  console.log('\n🔧 Creating system configuration...');
+  
+  await prisma.systemConfig.upsert({
+    where: { key: 'balance_to_credit_rate' },
+    update: {
+      value: '10000',
+      updatedAt: new Date(),
+    },
+    create: {
+      key: 'balance_to_credit_rate',
+      value: '10000', // Rp 10,000 = 1 credit
+      type: 'number',
+      category: 'credits',
+      label: 'Balance to Credit Exchange Rate',
+      description: 'Amount of balance (in Rupiah) required to exchange for 1 credit',
+    },
+  });
+
+  console.log('✅ System configuration created');
+  console.log('   - Exchange Rate: Rp 10,000 = 1 Credit');
 }
 
 seedGenovaAI()

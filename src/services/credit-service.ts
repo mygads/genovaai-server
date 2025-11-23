@@ -50,11 +50,11 @@ export class CreditService {
         return { allowed: true };
 
       case 'free_pool':
-        // Check if balance > 0
-        if (Number(user.balance) <= 0) {
+        // Check if balance > 0 OR credits > 0
+        if (Number(user.balance) <= 0 && user.credits < 1) {
           return { 
             allowed: false, 
-            reason: 'Insufficient balance. Please top-up to use free pool mode.' 
+            reason: 'Insufficient balance or credits. Please top-up balance or purchase credits to use free pool mode.' 
           };
         }
         return { allowed: true };
@@ -225,5 +225,104 @@ export class CreditService {
     });
 
     return { transactions, total };
+  }
+
+  /**
+   * Exchange balance to credits
+   */
+  static async exchangeBalanceToCredits(
+    userId: string,
+    balanceAmount: number
+  ): Promise<{ success: boolean; creditsReceived?: number; error?: string }> {
+    try {
+      // Get exchange rate from system config
+      const rateConfig = await prisma.systemConfig.findUnique({
+        where: { key: 'balance_to_credit_rate' },
+      });
+
+      if (!rateConfig) {
+        return { success: false, error: 'Exchange rate not configured' };
+      }
+
+      const rate = parseFloat(rateConfig.value); // e.g., 10000 (10000 balance = 1 credit)
+      
+      if (balanceAmount < rate) {
+        return { 
+          success: false, 
+          error: `Minimum exchange amount is ${rate.toLocaleString('id-ID')} balance` 
+        };
+      }
+
+      const creditsToAdd = Math.floor(balanceAmount / rate);
+
+      // Use transaction to ensure atomic operation
+      await prisma.$transaction(async (tx) => {
+        // Check current balance
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { balance: true },
+        });
+
+        if (!user || Number(user.balance) < balanceAmount) {
+          throw new Error('Insufficient balance');
+        }
+
+        // Deduct balance
+        await tx.user.update({
+          where: { id: userId },
+          data: { 
+            balance: { decrement: balanceAmount },
+            credits: { increment: creditsToAdd },
+          },
+        });
+
+        // Log balance deduction
+        await tx.creditTransaction.create({
+          data: {
+            userId,
+            type: 'balance_exchange',
+            amount: -balanceAmount,
+            credits: 0,
+            description: `Exchange ${balanceAmount.toLocaleString('id-ID')} balance to ${creditsToAdd} credits`,
+            status: 'completed',
+          },
+        });
+
+        // Log credit addition
+        await tx.creditTransaction.create({
+          data: {
+            userId,
+            type: 'credit_exchange',
+            amount: 0,
+            credits: creditsToAdd,
+            description: `Received ${creditsToAdd} credits from balance exchange`,
+            status: 'completed',
+          },
+        });
+      });
+
+      return { success: true, creditsReceived: creditsToAdd };
+    } catch (error) {
+      console.error('Failed to exchange balance to credits:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to exchange balance' 
+      };
+    }
+  }
+
+  /**
+   * Get exchange rate
+   */
+  static async getExchangeRate(): Promise<number | null> {
+    try {
+      const config = await prisma.systemConfig.findUnique({
+        where: { key: 'balance_to_credit_rate' },
+      });
+      return config ? parseFloat(config.value) : null;
+    } catch (error) {
+      console.error('Failed to get exchange rate:', error);
+      return null;
+    }
   }
 }

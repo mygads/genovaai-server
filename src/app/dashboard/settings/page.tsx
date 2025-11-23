@@ -145,8 +145,9 @@ export default function SettingsPage() {
     // Validate free_pool mode
     if (newSession.requestMode === 'free_pool') {
       const balance = parseFloat(user?.balance || '0');
-      if (balance <= 0) {
-        alert('Free Pool mode requires balance. Please top up first.');
+      const credits = user?.credits || 0;
+      if (balance <= 0 && credits < 1) {
+        alert('Free Pool mode requires balance or credits. Please top up or exchange balance to credits first.');
         return;
       }
     }
@@ -365,7 +366,8 @@ export default function SettingsPage() {
                 </label>
                 <div className="grid grid-cols-3 gap-3">
                   {requestModes.map((mode) => {
-                    const isFreePoolDisabled = mode.value === 'free_pool' && (!user || parseFloat(user.balance || '0') <= 0);
+                    const isFreePoolDisabled = mode.value === 'free_pool' && 
+                      (!user || (parseFloat(user.balance || '0') <= 0 && (user.credits || 0) < 1));
                     const isFreeUserKeyDisabled = mode.value === 'free_user_key' && userApiKeys.length === 0;
                     const isDisabled = isFreePoolDisabled || isFreeUserKeyDisabled;
                     return (
@@ -393,7 +395,7 @@ export default function SettingsPage() {
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {mode.description}
                           {mode.value === 'free_pool' && isFreePoolDisabled && (
-                            <span className="block text-red-500 mt-1">Requires balance</span>
+                            <span className="block text-red-500 mt-1">Requires balance or credits</span>
                           )}
                           {mode.value === 'free_user_key' && isFreeUserKeyDisabled && (
                             <span className="block text-red-500 mt-1">Add API key first</span>

@@ -23,11 +23,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { code, amount } = body;
+    const { code, amount, type } = body;
 
-    if (!code || !amount) {
+    if (!code || !amount || !type) {
       return NextResponse.json(
-        { success: false, error: 'Code and amount are required' },
+        { success: false, error: 'Code, amount, and type are required' },
         { status: 400 }
       );
     }
@@ -46,6 +46,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Invalid voucher code' },
         { status: 404 }
+      );
+    }
+
+    // Check voucher type matches
+    if (voucher.type !== type) {
+      return NextResponse.json(
+        { success: false, error: `This voucher is only valid for ${voucher.type} transactions` },
+        { status: 400 }
       );
     }
 
@@ -125,9 +133,12 @@ export async function POST(request: NextRequest) {
         id: voucher.id,
         code: voucher.code,
         name: voucher.name,
+        type: voucher.type,
         discountType: voucher.discountType,
         value: voucher.value,
         discountAmount,
+        creditBonus: voucher.creditBonus || 0,
+        balanceBonus: voucher.balanceBonus ? parseFloat(voucher.balanceBonus.toString()) : 0,
         finalAmount: parseFloat(amount) - discountAmount,
       },
     });

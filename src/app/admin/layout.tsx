@@ -5,7 +5,8 @@ import {
   Users, 
   Ticket, 
   Key, 
-  BarChart3 
+  BarChart3,
+  Settings
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -19,6 +20,7 @@ const menuItems = [
   { href: '/admin/vouchers', icon: Ticket, label: 'Vouchers' },
   { href: '/admin/apikeys', icon: Key, label: 'API Keys' },
   { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
+  { href: '/admin/config', icon: Settings, label: 'Configuration' },
 ];
 
 export default async function AdminLayout({ children, params }: AdminLayoutProps) {
