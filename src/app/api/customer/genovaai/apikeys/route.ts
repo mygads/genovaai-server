@@ -27,12 +27,10 @@ export async function GET(request: NextRequest) {
 
     const keys = await ApiKeyPoolService.getUserApiKeys(payload.userId);
     
-    // Return with apiKeys wrapper
+    // Return array directly in data
     return NextResponse.json({
       success: true,
-      data: {
-        apiKeys: keys,
-      },
+      data: keys, // Return array directly, not nested
     });
   } catch (error) {
     console.error('API keys fetch error:', error);
