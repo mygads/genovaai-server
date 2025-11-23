@@ -39,7 +39,7 @@ export default function LoginPage() {
       }
 
       // Redirect berdasarkan role
-      if (data.data?.user?.role === "ADMIN") {
+      if (data.data?.user?.role === "admin") {
         router.push("/admin/dashboard");
       } else {
         router.push("/dashboard");
@@ -141,7 +141,7 @@ export default function LoginPage() {
             <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Demo Accounts:</p>
             <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
               <p>👤 Customer: customer@genovaai.test / Test123!@#</p>
-              <p>👨‍💼 Admin: admin@genovaai.test / Admin123!@#</p>
+              <p>👨‍💼 Admin: admin@genovaai.test / Test123!@#</p>
             </div>
           </div>
         </div>

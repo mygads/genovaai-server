@@ -6,7 +6,9 @@ import { z } from 'zod';
 
 const addApiKeySchema = z.object({
   apiKey: z.string().min(1),
+  name: z.string().optional(),
   priority: z.number().optional(),
+  maxRequestsPerDay: z.number().optional(),
 });
 
 // GET /api/admin/genovaai/apikeys - List all API keys in pool
@@ -43,12 +45,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: {
-        apiKeys: apiKeys.map(key => ({
-          ...key,
-          apiKey: ApiKeyPoolService.maskApiKey(key.apiKey),
-        })),
-      },
+      data: apiKeys,
     });
   } catch (error) {
     console.error('Admin API keys fetch error:', error);
@@ -101,18 +98,17 @@ export async function POST(request: NextRequest) {
     const apiKey = await prisma.geminiAPIKey.create({
       data: {
         userId: null, // Admin key
+        name: validation.data.name || null,
         apiKey: validation.data.apiKey,
-        priority: validation.data.priority || 1000,
+        priority: validation.data.priority || 1,
+        maxRequestsPerDay: validation.data.maxRequestsPerDay || 1500,
         status: 'active',
       },
     });
 
     return NextResponse.json({
       success: true,
-      data: {
-        ...apiKey,
-        apiKey: ApiKeyPoolService.maskApiKey(apiKey.apiKey),
-      },
+      data: apiKey,
     });
   } catch (error) {
     console.error('Admin add API key error:', error);

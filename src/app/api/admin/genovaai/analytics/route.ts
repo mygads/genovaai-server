@@ -22,58 +22,97 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get overall statistics
+    // Calculate start of current month
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    // User statistics
     const [
       totalUsers,
       activeUsers,
-      totalRequests,
-      successfulRequests,
-      totalRevenue,
-      activeVouchers,
-      apiKeysCount,
+      newThisMonth,
+      customers,
+      admins,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { isActive: true } }),
-      prisma.lLMRequest.count(),
-      prisma.lLMRequest.count({ where: { status: 'success' } }),
-      prisma.payment.aggregate({
-        where: { status: 'paid' },
-        _sum: { amount: true },
-      }),
-      prisma.voucher.count({ where: { isActive: true } }),
-      prisma.geminiAPIKey.count(),
+      prisma.user.count({ where: { createdAt: { gte: startOfMonth } } }),
+      prisma.user.count({ where: { role: 'customer' } }),
+      prisma.user.count({ where: { role: { in: ['admin', 'super_admin'] } } }),
     ]);
 
-    // Get subscription breakdown
-    const subscriptionBreakdown = await prisma.user.groupBy({
-      by: ['subscriptionStatus'],
-      _count: true,
+    // Credits statistics
+    const creditStats = await prisma.user.aggregate({
+      _sum: { credits: true },
+      _avg: { credits: true },
     });
 
-    // Get request mode breakdown
-    const requestModeBreakdown = await prisma.lLMRequest.groupBy({
-      by: ['requestMode'],
-      _count: true,
+    const totalCreditsUsed = await prisma.lLMRequest.aggregate({
+      _sum: { costCredits: true },
     });
 
-    // Get recent payments (last 10)
-    const recentPayments = await prisma.payment.findMany({
-      where: { status: 'paid' },
-      include: {
-        user: {
-          select: { name: true, email: true },
-        },
-      },
-      orderBy: { paymentDate: 'desc' },
-      take: 10,
+    // Balance statistics
+    const balanceStats = await prisma.user.aggregate({
+      _sum: { balance: true },
+      _avg: { balance: true },
     });
 
-    // Get top users by request count
+    // Request statistics
+    const [
+      totalRequests,
+      successfulRequests,
+      failedRequests,
+      thisMonthRequests,
+      freePoolRequests,
+      freeUserKeyRequests,
+      premiumRequests,
+    ] = await Promise.all([
+      prisma.lLMRequest.count(),
+      prisma.lLMRequest.count({ where: { status: 'success' } }),
+      prisma.lLMRequest.count({ where: { status: { not: 'success' } } }),
+      prisma.lLMRequest.count({ where: { createdAt: { gte: startOfMonth } } }),
+      prisma.lLMRequest.count({ where: { requestMode: 'free_pool' } }),
+      prisma.lLMRequest.count({ where: { requestMode: 'free_user_key' } }),
+      prisma.lLMRequest.count({ where: { requestMode: 'premium' } }),
+    ]);
+
+    // Payment statistics
+    const [
+      totalPayments,
+      completedPayments,
+      pendingPayments,
+      totalRevenue,
+      thisMonthRevenue,
+    ] = await Promise.all([
+      prisma.payment.count(),
+      prisma.payment.count({ where: { status: 'completed' } }),
+      prisma.payment.count({ where: { status: 'pending' } }),
+      prisma.payment.aggregate({
+        where: { status: 'completed' },
+        _sum: { amount: true },
+      }),
+      prisma.payment.aggregate({
+        where: { status: 'completed', createdAt: { gte: startOfMonth } },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    // Voucher statistics
+    const [totalVouchers, activeVouchers, totalVoucherUsed] = await Promise.all([
+      prisma.voucher.count(),
+      prisma.voucher.count({ where: { isActive: true } }),
+      prisma.voucherUsage.count(),
+    ]);
+
+    // Top users
     const topUsers = await prisma.user.findMany({
       select: {
         id: true,
         name: true,
         email: true,
+        credits: true,
+        balance: true,
         _count: {
           select: { llmRequests: true },
         },
@@ -86,43 +125,55 @@ export async function GET(request: NextRequest) {
       take: 10,
     });
 
-    // Get daily request stats (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const dailyStats = await prisma.lLMRequest.groupBy({
-      by: ['createdAt'],
-      where: {
-        createdAt: {
-          gte: thirtyDaysAgo,
-        },
-      },
-      _count: true,
-    });
-
     return NextResponse.json({
       success: true,
       data: {
-        overview: {
-          totalUsers,
-          activeUsers,
-          totalRequests,
-          successfulRequests,
-          successRate: totalRequests > 0 ? (successfulRequests / totalRequests * 100).toFixed(2) : 0,
-          totalRevenue: totalRevenue._sum.amount?.toString() || '0',
-          activeVouchers,
-          apiKeysCount,
+        users: {
+          total: totalUsers,
+          active: activeUsers,
+          newThisMonth,
+          customers,
+          admins,
         },
-        subscriptionBreakdown,
-        requestModeBreakdown,
-        recentPayments: recentPayments.map(p => ({
-          ...p,
-          amount: p.amount.toString(),
-        })),
-        topUsers,
-        dailyStats: dailyStats.map(stat => ({
-          date: stat.createdAt.toISOString().split('T')[0],
-          count: stat._count,
+        credits: {
+          totalDistributed: creditStats._sum?.credits || 0,
+          totalUsed: totalCreditsUsed._sum?.costCredits || 0,
+          averagePerUser: creditStats._avg?.credits || 0,
+        },
+        balance: {
+          totalBalance: balanceStats._sum?.balance?.toString() || '0',
+          averagePerUser: balanceStats._avg?.balance?.toString() || '0',
+        },
+        requests: {
+          total: totalRequests,
+          successful: successfulRequests,
+          failed: failedRequests,
+          thisMonth: thisMonthRequests,
+          byMode: {
+            free_pool: freePoolRequests,
+            free_user_key: freeUserKeyRequests,
+            premium: premiumRequests,
+          },
+        },
+        payments: {
+          total: totalPayments,
+          completed: completedPayments,
+          pending: pendingPayments,
+          totalRevenue: totalRevenue._sum?.amount?.toString() || '0',
+          thisMonthRevenue: thisMonthRevenue._sum?.amount?.toString() || '0',
+        },
+        vouchers: {
+          total: totalVouchers,
+          active: activeVouchers,
+          totalUsed: totalVoucherUsed,
+        },
+        topUsers: topUsers.map(user => ({
+          id: user.id,
+          name: user.name || 'Unnamed',
+          email: user.email,
+          credits: user.credits,
+          balance: user.balance.toString(),
+          requestCount: user._count.llmRequests,
         })),
       },
     });
