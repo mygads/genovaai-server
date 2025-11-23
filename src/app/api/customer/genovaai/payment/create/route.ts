@@ -123,32 +123,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create payment request
-    const paymentRequest = {
-      userId: userId,
-      transactionType: type,
-      amount: finalAmount,
-      credits: credits,
-      currency: 'IDR' as const,
-      paymentMethodCode: paymentMethod,
-      customerInfo: {
-        id: userId,
-        name: user.name || 'Customer',
-        email: user.email,
-        phone: user.phone || undefined,
-      },
-      voucherCode: voucherCode,
-      callbackUrl: `${process.env.DUITKU_CALLBACK_URL || 'http://localhost:8090'}/api/payment/callback`,
-      returnUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8090'}/dashboard/payment/success`,
-    };
+    // QRIS fallback methods in order of preference
+    const qrisFallbackMethods = ['duitku_SP', 'duitku_NQ', 'duitku_GQ', 'duitku_SQ', 'duitku_BC'];
+    let selectedMethod = paymentMethod;
+    let gatewayResponse;
+    let lastError = '';
 
-    // Create payment via gateway
-    const gatewayResponse = await gateway.createPayment(paymentRequest);
+    // Try primary method first, then fallback methods if it fails
+    const methodsToTry = paymentMethod.includes('SP') || paymentMethod.includes('QRIS') 
+      ? qrisFallbackMethods 
+      : [paymentMethod];
 
-    if (!gatewayResponse.success) {
-      console.error('[PAYMENT] Gateway error:', gatewayResponse.error);
+    for (const method of methodsToTry) {
+      // Create payment request
+      const paymentRequest = {
+        userId: userId,
+        transactionType: type,
+        amount: finalAmount,
+        credits: credits,
+        currency: 'IDR' as const,
+        paymentMethodCode: method,
+        customerInfo: {
+          id: userId,
+          name: user.name || 'Customer',
+          email: user.email,
+          phone: user.phone || undefined,
+        },
+        voucherCode: voucherCode,
+        callbackUrl: `${process.env.DUITKU_CALLBACK_URL || 'http://localhost:8090'}/api/payment/callback`,
+        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8090'}/dashboard/payment/success`,
+      };
+
+      // Create payment via gateway
+      gatewayResponse = await gateway.createPayment(paymentRequest);
+
+      if (gatewayResponse.success) {
+        selectedMethod = method;
+        console.log(`[PAYMENT] Success with method: ${method}`);
+        break;
+      } else {
+        lastError = gatewayResponse.error || 'Payment creation failed';
+        console.log(`[PAYMENT] Method ${method} failed: ${lastError}, trying next...`);
+      }
+    }
+
+    if (!gatewayResponse || !gatewayResponse.success) {
+      console.error('[PAYMENT] All payment methods failed. Last error:', lastError);
       return NextResponse.json(
-        { success: false, message: gatewayResponse.error || 'Payment creation failed' },
+        { success: false, message: lastError || 'All payment methods unavailable' },
         { status: 400 }
       );
     }
@@ -158,7 +180,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         amount: new Prisma.Decimal(finalAmount),
-        method: paymentMethod,
+        method: selectedMethod,
         type,
         status: 'pending',
         expiresAt: gatewayResponse.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000),
