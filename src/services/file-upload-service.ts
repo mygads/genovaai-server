@@ -290,6 +290,25 @@ export class FileUploadService {
   }
 
   /**
+   * Get files by IDs (for LLM context with new knowledgeFileIds approach)
+   */
+  static async getFilesByIds(fileIds: string[], userId: string) {
+    return await prisma.knowledgeFile.findMany({
+      where: {
+        id: { in: fileIds },
+        userId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        fileName: true,
+        fileType: true,
+        extractedText: true,
+      },
+    });
+  }
+
+  /**
    * Link file to session
    */
   static async linkFileToSession(fileId: string, sessionId: string, userId: string): Promise<boolean> {

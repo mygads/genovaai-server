@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export interface VoucherValidation {
   valid: boolean;
@@ -121,7 +122,7 @@ export class VoucherService {
             userId,
             discountAmount,
             creditsBonus: creditsBonus || null,
-            balanceBonus: balanceBonus ? new Prisma.Decimal(balanceBonus) : null,
+            balanceBonus: balanceBonus || null,
           },
         });
       });

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FaHome, FaUser, FaCreditCard, FaHistory, FaKey, FaCog, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa';
+import { FaHome, FaUser, FaCreditCard, FaHistory, FaKey, FaCog, FaSignOutAlt, FaBars, FaTimes, FaBook } from 'react-icons/fa';
 import { setupAuthInterceptor } from '@/lib/auth-interceptor';
 
 export default function DashboardLayout({
@@ -121,6 +121,7 @@ export default function DashboardLayout({
     { icon: FaCreditCard, label: 'Balance', path: '/dashboard/balance' },
     { icon: FaHistory, label: 'History', path: '/dashboard/history' },
     { icon: FaKey, label: 'API Keys', path: '/dashboard/apikeys' },
+    { icon: FaBook, label: 'Knowledge', path: '/dashboard/knowledge' },
     { icon: FaCog, label: 'Settings', path: '/dashboard/settings' },
   ];
 

@@ -89,7 +89,7 @@ export class LLMGatewayService {
     let fileContents: string | null = null;
     
     if (session.knowledgeFileIds && session.knowledgeFileIds.length > 0) {
-      const files = await FileUploadService.getSessionFiles(session.sessionId, request.userId);
+      const files = await FileUploadService.getFilesByIds(session.knowledgeFileIds, request.userId);
       
       if (files.length > 0) {
         fileContents = files

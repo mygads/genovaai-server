@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [userApiKeys, setUserApiKeys] = useState<Array<{ id: string; status: string }>>([]);
+  const [knowledgeFiles, setKnowledgeFiles] = useState<Array<{ id: string; fileName: string }>>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [newSession, setNewSession] = useState({
@@ -36,6 +37,8 @@ export default function SettingsPage() {
     systemPrompt: 'You are a helpful AI assistant.',
     useCustomPrompt: false,
     customSystemPrompt: '',
+    knowledgeFileIds: [] as string[],
+    useKnowledge: false,
   });
 
   const providers = [
@@ -62,6 +65,7 @@ export default function SettingsPage() {
     fetchSessions();
     fetchUser();
     fetchUserApiKeys();
+    fetchKnowledgeFiles();
   }, []);
 
   async function fetchUser() {
@@ -89,6 +93,23 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Error fetching API keys:', error);
+    }
+  }
+
+  async function fetchKnowledgeFiles() {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('http://localhost:8090/api/customer/genovaai/knowledge?limit=100', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.success && data.data?.files) {
+        setKnowledgeFiles(data.data.files);
+      }
+    } catch (error) {
+      console.error('Error fetching knowledge files:', error);
     }
   }
 
@@ -163,6 +184,8 @@ export default function SettingsPage() {
             systemPrompt: 'You are a helpful AI assistant.',
             useCustomPrompt: false,
             customSystemPrompt: '',
+            knowledgeFileIds: [],
+            useKnowledge: false,
           });
           setShowAddForm(false);
           setEditingId(null);
@@ -191,6 +214,8 @@ export default function SettingsPage() {
             systemPrompt: 'You are a helpful AI assistant.',
             useCustomPrompt: false,
             customSystemPrompt: '',
+            knowledgeFileIds: [],
+            useKnowledge: false,
           });
           setShowAddForm(false);
         } else {
@@ -238,9 +263,11 @@ export default function SettingsPage() {
       provider: session.provider || 'gemini',
       model: session.model || 'gemini-2.5-flash',
       answerMode: session.answerMode,
-      systemPrompt: (session as any).systemPrompt || 'You are a helpful AI assistant.',
-      useCustomPrompt: (session as any).useCustomPrompt || false,
-      customSystemPrompt: (session as any).customSystemPrompt || '',
+      systemPrompt: (session as ExtensionSession & { systemPrompt?: string }).systemPrompt || 'You are a helpful AI assistant.',
+      useCustomPrompt: (session as ExtensionSession & { useCustomPrompt?: boolean }).useCustomPrompt || false,
+      customSystemPrompt: (session as ExtensionSession & { customSystemPrompt?: string }).customSystemPrompt || '',
+      knowledgeFileIds: (session as ExtensionSession & { knowledgeFileIds?: string[] }).knowledgeFileIds || [],
+      useKnowledge: false, // Will be determined by whether knowledge is used
     });
     setShowAddForm(true);
   }
@@ -346,7 +373,7 @@ export default function SettingsPage() {
                         key={mode.value}
                         onClick={() => {
                           if (!isDisabled) {
-                            const newMode = mode.value as any;
+                            const newMode = mode.value as 'premium' | 'free_user_key' | 'free_pool';
                             setNewSession({ 
                               ...newSession, 
                               requestMode: newMode,
@@ -487,6 +514,83 @@ export default function SettingsPage() {
                 )}
               </div>
 
+              {/* Knowledge Base Section */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Knowledge Base
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newSession.useKnowledge}
+                      onChange={(e) => setNewSession({ ...newSession, useKnowledge: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Enable Knowledge Base</span>
+                  </label>
+                </div>
+                
+                {newSession.useKnowledge && (
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                      Select knowledge files to include in this session&apos;s context
+                    </p>
+                    {knowledgeFiles.length === 0 ? (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No knowledge files available</p>
+                        <a 
+                          href="/dashboard/knowledge" 
+                          className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                        >
+                          Upload knowledge files →
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {knowledgeFiles.map((file) => (
+                          <label 
+                            key={file.id} 
+                            className="flex items-center gap-3 p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={newSession.knowledgeFileIds.includes(file.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewSession({
+                                    ...newSession,
+                                    knowledgeFileIds: [...newSession.knowledgeFileIds, file.id]
+                                  });
+                                } else {
+                                  setNewSession({
+                                    ...newSession,
+                                    knowledgeFileIds: newSession.knowledgeFileIds.filter(id => id !== file.id)
+                                  });
+                                }
+                              }}
+                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                {file.fileName}
+                              </p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {newSession.knowledgeFileIds.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <strong>{newSession.knowledgeFileIds.length}</strong> file{newSession.knowledgeFileIds.length !== 1 ? 's' : ''} selected
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => {
@@ -501,6 +605,8 @@ export default function SettingsPage() {
                       systemPrompt: 'You are a helpful AI assistant.',
                       useCustomPrompt: false,
                       customSystemPrompt: '',
+                      knowledgeFileIds: [],
+                      useKnowledge: false,
                     });
                   }}
                   className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
