@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "GenovaAI v2 - Smart Quiz Assistant",
+  "version": "2.1.1",
+  "description": "AI-powered quiz assistant with backend integration",
+  "icons": {
+    "48": "public/logo.png"
+  },
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "activeTab",
+    "scripting",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://genova.genfity.com/*",
+    "http://localhost:8090/*"
+  ],
+  "background": {
+    "service_worker": "service-worker-loader.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "js": [
+        "assets/index.ts-BMkUiaIB.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ],
+      "all_frames": false
+    }
+  ],
+  "options_page": "src/options/index.html",
+  "action": {
+    "default_icon": {
+      "48": "public/logo.png"
+    },
+    "default_title": "GenovaAI Settings"
+  },
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "resources": [
+        "assets/index.ts-BMkUiaIB.js"
+      ],
+      "use_dynamic_url": false
+    }
+  ]
+}

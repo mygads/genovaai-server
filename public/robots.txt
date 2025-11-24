@@ -1,0 +1,53 @@
+# robots.txt for GenovaAI - genova.genfity.com
+# Generated on November 24, 2025
+
+# Allow all search engines
+User-agent: *
+Allow: /
+
+# Disallow private/sensitive areas
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard/payment/
+Disallow: /_next/
+Disallow: /payment/checkout/
+Disallow: /payment/status/
+
+# Allow important public pages
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /dashboard$
+Allow: /payment$
+
+# Sitemap location
+Sitemap: https://genova.genfity.com/sitemap.xml
+
+# Crawl-delay (optional, for polite crawling)
+Crawl-delay: 1
+
+# Specific bot rules
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 1
+
+# Block bad bots
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: AhrefsBot
+Crawl-delay: 5
+
+User-agent: SemrushBot
+Crawl-delay: 5

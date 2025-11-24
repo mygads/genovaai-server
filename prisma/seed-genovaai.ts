@@ -127,6 +127,20 @@ async function seedGenovaAI() {
   await prisma.voucher.createMany({
     data: [
       {
+        code: 'NEWUSERPRAK',
+        name: 'New User Premium Bonus',
+        description: '5 kredit premium GRATIS untuk user baru! Daftar sekarang dan langsung pakai.',
+        type: 'credit',
+        discountType: 'fixed',
+        value: 0,
+        creditBonus: 5,
+        maxUses: 10000,
+        allowMultipleUsePerUser: false, // Only once per user
+        isActive: true,
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+      },
+      {
         code: 'WELCOME10',
         name: 'Welcome Bonus',
         description: '10 credits bonus untuk user baru',
@@ -198,14 +212,13 @@ async function seedGenovaAI() {
     skipDuplicates: true,
   });
 
-  console.log('✅ Test vouchers created (5 vouchers)');
+  console.log('✅ Test vouchers created (6 vouchers)');
+  console.log(`   - NEWUSERPRAK: 5 credit bonus for new users (credit) - SPECIAL PROMO!`);
   console.log(`   - WELCOME10: 10 credit bonus (credit)`);
   console.log(`   - TOPUP50K: 50% balance discount (balance)`);
   console.log(`   - CREDIT20: 20 credit bonus (credit)`);
   console.log(`   - BALANCE10K: Rp 10K balance bonus (balance)`);
   console.log(`   - CREDITFIRST: 30% credit discount (credit)`);
-  console.log(`   - TOPUP50K: 50% discount on balance top-up`);
-  console.log(`   - CREDIT20: 20 free credits bonus`);
 
   // 5. Give welcome bonus to test customer
   await prisma.creditTransaction.create({
@@ -360,12 +373,12 @@ Faktor yang mempengaruhi:
   await prisma.systemConfig.upsert({
     where: { key: 'balance_to_credit_rate' },
     update: {
-      value: '10000',
+      value: '500',
       updatedAt: new Date(),
     },
     create: {
       key: 'balance_to_credit_rate',
-      value: '10000', // Rp 10,000 = 1 credit
+      value: '500', // Rp 500 = 1 credit
       type: 'number',
       category: 'credits',
       label: 'Balance to Credit Exchange Rate',
@@ -374,7 +387,7 @@ Faktor yang mempengaruhi:
   });
 
   console.log('✅ System configuration created');
-  console.log('   - Exchange Rate: Rp 10,000 = 1 Credit');
+  console.log('   - Exchange Rate: Rp 500 = 1 Credit');
 }
 
 seedGenovaAI()
