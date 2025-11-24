@@ -445,25 +445,7 @@ export default function Home() {
 
         <div className="max-w-4xl mx-auto">
           {/* Download Options */}
-          <div className="grid md:grid-cols-2 gap-6 mb-12">
-            {/* Option 1: Direct Download (Recommended) */}
-            <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl p-8 text-center text-white shadow-2xl relative">
-              <div className="absolute -top-3 right-6 bg-yellow-400 text-gray-900 text-xs font-bold px-3 py-1 rounded-full">
-                ⭐ RECOMMENDED
-              </div>
-              <div className="text-5xl mb-4">📦</div>
-              <h3 className="text-2xl font-bold mb-3">Download Langsung</h3>
-              <p className="text-green-100 mb-6">Tanpa perlu unzip, langsung load ke Chrome!</p>
-              <a 
-                href="https://github.com/mygads/genovaai-extension/archive/refs/heads/main.zip"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block px-8 py-3 bg-white text-green-600 rounded-xl hover:bg-gray-100 transition-all text-lg font-bold shadow-lg hover:shadow-xl"
-              >
-                📥 Download dari GitHub
-              </a>
-              <p className="text-sm mt-4 text-green-100">Extract → Masuk folder dist → Load unpacked</p>
-            </div>
+          <div className="mb-12">
 
             {/* Option 2: ZIP File (Backup) */}
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-3xl p-8 text-center text-white shadow-2xl">
@@ -598,7 +580,6 @@ export default function Home() {
               <li><strong>Error &ldquo;manifest.json not found&rdquo;:</strong> Anda salah pilih folder. Pilih folder <strong>dist</strong> yang berisi file manifest.json</li>
               <li><strong>Error saat load:</strong> Coba extract ulang file ZIP atau download ulang extension dari GitHub</li>
               <li><strong>Tidak bisa login:</strong> Pastikan sudah register di website GenovaAI terlebih dahulu</li>
-              <li><strong>Folder dist tidak ada:</strong> Download dari GitHub yang sudah include folder dist. Jika download source code, jalankan <code className="bg-white dark:bg-gray-800 px-2 py-1 rounded">npm run build</code> dulu</li>
               <li><strong>Butuh bantuan?</strong> Hubungi support@genfity.com atau lihat dokumentasi lengkap di dashboard</li>
             </ul>
           </div>
