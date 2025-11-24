@@ -29,7 +29,7 @@ export default function AdminConfigPage() {
   async function fetchConfigs() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/admin/genovaai/config', {
+      const response = await fetch('/api/admin/genovaai/config', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
@@ -48,7 +48,7 @@ export default function AdminConfigPage() {
     setSaving(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/admin/genovaai/config', {
+      const response = await fetch('/api/admin/genovaai/config', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

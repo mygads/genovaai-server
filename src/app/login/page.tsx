@@ -136,14 +136,16 @@ export default function LoginPage() {
             </Link>
           </p>
 
-          {/* Demo Accounts */}
-          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Demo Accounts:</p>
-            <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
-              <p>👤 Customer: customer@genovaai.test / Test123!@#</p>
-              <p>👨‍💼 Admin: admin@genovaai.test / Test123!@#</p>
+          {process.env.NODE_ENV === 'development' && <>
+            {/* Demo Accounts */}
+            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Demo Accounts:</p>
+              <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                  <p>👤 Customer: customer@genovaai.test / Test123!@#</p>
+                  <p>👨‍💼 Admin: admin@genovaai.test / Test123!@#</p>
+                </div>  
             </div>
-          </div>
+          </>}
         </div>
 
         {/* Back to Home */}

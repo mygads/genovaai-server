@@ -48,7 +48,7 @@ export default function CreateVoucherPage() {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/admin/genovaai/vouchers', {
+      const response = await fetch('/api/admin/genovaai/vouchers', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -81,7 +81,7 @@ export default function PaymentDetailPage() {
     
     try {
       const token = localStorage.getItem('accessToken')
-      const response = await fetch(`http://localhost:8090/api/customer/genovaai/payment/${paymentId}`, {
+      const response = await fetch(`/api/customer/genovaai/payment/${paymentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

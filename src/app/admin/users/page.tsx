@@ -40,7 +40,7 @@ export default function UsersPage() {
       if (search) params.append('search', search);
 
       const response = await fetch(
-        `http://localhost:8090/api/admin/genovaai/users?${params}`,
+        `/api/admin/genovaai/users?${params}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,

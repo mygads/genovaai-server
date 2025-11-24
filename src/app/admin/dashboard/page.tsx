@@ -28,7 +28,7 @@ export default function AdminDashboard() {
   async function fetchDashboardStats() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/admin/genovaai/analytics', {
+      const response = await fetch('/api/admin/genovaai/analytics', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

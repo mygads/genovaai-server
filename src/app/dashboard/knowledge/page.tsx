@@ -35,7 +35,7 @@ export default function KnowledgePage() {
         return;
       }
       
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/knowledge?limit=100', {
+      const response = await fetch('/api/customer/genovaai/knowledge?limit=100', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -79,7 +79,7 @@ export default function KnowledgePage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/knowledge/upload', {
+      const response = await fetch('/api/customer/genovaai/knowledge/upload', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -109,7 +109,7 @@ export default function KnowledgePage() {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8090/api/customer/genovaai/knowledge/${fileId}`, {
+      const response = await fetch(`/api/customer/genovaai/knowledge/${fileId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -136,7 +136,7 @@ export default function KnowledgePage() {
   async function handleDownload(fileId: string, fileName: string) {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8090/api/customer/genovaai/knowledge/${fileId}/download`, {
+      const response = await fetch(`/api/customer/genovaai/knowledge/${fileId}/download`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

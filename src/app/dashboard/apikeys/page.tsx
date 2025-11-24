@@ -38,7 +38,7 @@ export default function ApiKeysPage() {
         return;
       }
       
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/apikeys', {
+      const response = await fetch('/api/customer/genovaai/apikeys', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -68,7 +68,7 @@ export default function ApiKeysPage() {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/apikeys', {
+      const response = await fetch('/api/customer/genovaai/apikeys', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -96,7 +96,7 @@ export default function ApiKeysPage() {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8090/api/customer/genovaai/apikeys?id=${id}`, {
+      const response = await fetch(`/api/customer/genovaai/apikeys?id=${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -82,7 +82,7 @@ export default function SettingsPage() {
   async function fetchUserApiKeys() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/apikeys', {
+      const response = await fetch('/api/customer/genovaai/apikeys', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -99,7 +99,7 @@ export default function SettingsPage() {
   async function fetchKnowledgeFiles() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/knowledge?limit=100', {
+      const response = await fetch('/api/customer/genovaai/knowledge?limit=100', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -116,7 +116,7 @@ export default function SettingsPage() {
   async function fetchSessions() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/sessions', {
+      const response = await fetch('/api/customer/genovaai/sessions', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -165,7 +165,7 @@ export default function SettingsPage() {
       
       if (editingId) {
         // Update existing session
-        const response = await fetch(`http://localhost:8090/api/customer/genovaai/sessions/${editingId}`, {
+        const response = await fetch(`/api/customer/genovaai/sessions/${editingId}`, {
           method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -195,7 +195,7 @@ export default function SettingsPage() {
         }
       } else {
         // Create new session
-        const response = await fetch('http://localhost:8090/api/customer/genovaai/sessions', {
+        const response = await fetch('/api/customer/genovaai/sessions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -238,7 +238,7 @@ export default function SettingsPage() {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8090/api/customer/genovaai/sessions/${sessionId}`, {
+      const response = await fetch(`/api/customer/genovaai/sessions/${sessionId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -280,7 +280,7 @@ export default function SettingsPage() {
       const token = localStorage.getItem('accessToken');
       console.log('[Set Active] Request:', { sessionId, isActive: true });
       
-      const response = await fetch(`http://localhost:8090/api/customer/genovaai/sessions/${sessionId}`, {
+      const response = await fetch(`/api/customer/genovaai/sessions/${sessionId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

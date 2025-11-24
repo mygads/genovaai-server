@@ -29,7 +29,7 @@ export default function TopUpPage() {
   async function fetchExchangeRate() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/exchange', {
+      const response = await fetch('/api/customer/genovaai/exchange', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
@@ -48,7 +48,7 @@ export default function TopUpPage() {
     
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/vouchers/validate', {
+      const response = await fetch('/api/customer/genovaai/vouchers/validate', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -109,7 +109,7 @@ export default function TopUpPage() {
       const token = localStorage.getItem('accessToken');
       
       // Create payment
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/payment/create', {
+      const response = await fetch('/api/customer/genovaai/payment/create', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -43,7 +43,7 @@ export default function VouchersPage() {
       if (status) params.append('status', status);
 
       const response = await fetch(
-        `http://localhost:8090/api/admin/genovaai/vouchers?${params}`,
+        `/api/admin/genovaai/vouchers?${params}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,

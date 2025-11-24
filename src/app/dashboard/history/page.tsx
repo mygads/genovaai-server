@@ -61,7 +61,7 @@ export default function HistoryPage() {
         return;
       }
       
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/history?limit=200', {
+      const response = await fetch('/api/customer/genovaai/history?limit=200', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

@@ -42,7 +42,7 @@ export default function UserDetailPage() {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `http://localhost:8090/api/admin/genovaai/users/${params.id}`,
+        `/api/admin/genovaai/users/${params.id}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -67,7 +67,7 @@ export default function UserDetailPage() {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `http://localhost:8090/api/admin/genovaai/users/${params.id}/credits`,
+        `/api/admin/genovaai/users/${params.id}/credits`,
         {
           method: 'POST',
           headers: {
@@ -102,7 +102,7 @@ export default function UserDetailPage() {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `http://localhost:8090/api/admin/genovaai/users/${params.id}`,
+        `/api/admin/genovaai/users/${params.id}`,
         {
           method: 'PATCH',
           headers: {

@@ -450,7 +450,7 @@ export class LLMGatewayService {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.APP_URL || 'http://localhost:8090',
+        'HTTP-Referer': process.env.APP_URL || 'https://genova.genfity.com',
       },
       body: JSON.stringify({
         model,

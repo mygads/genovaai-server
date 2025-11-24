@@ -53,7 +53,7 @@ export default function PaymentCheckoutPage() {
   async function fetchTransaction() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8090/api/customer/genovaai/transactions/${transactionId}`, {
+      const response = await fetch(`/api/customer/genovaai/transactions/${transactionId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -85,7 +85,7 @@ export default function PaymentCheckoutPage() {
       const token = localStorage.getItem('accessToken');
       const method = paymentMethods.find(m => m.code === selectedMethod);
       
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/payment/create', {
+      const response = await fetch('/api/customer/genovaai/payment/create', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -40,7 +40,7 @@ export default function ProfilePage() {
   async function fetchProfile() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/profile', {
+      const response = await fetch('/api/customer/genovaai/profile', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -61,7 +61,7 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/profile', {
+      const response = await fetch('/api/customer/genovaai/profile', {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -106,7 +106,7 @@ export default function ProfilePage() {
     setChangingPassword(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/change-password', {
+      const response = await fetch('/api/customer/genovaai/change-password', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

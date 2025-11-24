@@ -42,7 +42,7 @@ export default function BalancePage() {
   async function fetchBalance() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/profile', {
+      const response = await fetch('/api/customer/genovaai/profile', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -64,7 +64,7 @@ export default function BalancePage() {
   async function fetchTransactions() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/transactions?limit=10', {
+      const response = await fetch('/api/customer/genovaai/transactions?limit=10', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -81,7 +81,7 @@ export default function BalancePage() {
   async function fetchExchangeRate() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/exchange', {
+      const response = await fetch('/api/customer/genovaai/exchange', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
@@ -118,7 +118,7 @@ export default function BalancePage() {
     setExchanging(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/exchange', {
+      const response = await fetch('/api/customer/genovaai/exchange', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -161,7 +161,7 @@ export default function BalancePage() {
     setValidatingVoucher(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/vouchers/redeem', {
+      const response = await fetch('/api/customer/genovaai/vouchers/redeem', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

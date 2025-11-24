@@ -77,7 +77,7 @@ export default function CustomerDashboardPage() {
       const token = localStorage.getItem('accessToken');
       
       // Fetch user profile
-      const profileRes = await fetch('http://localhost:8090/api/customer/genovaai/profile', {
+      const profileRes = await fetch('/api/customer/genovaai/profile', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const profileData = await profileRes.json();
@@ -87,7 +87,7 @@ export default function CustomerDashboardPage() {
       }
       
       // Fetch dashboard stats
-      const statsRes = await fetch('http://localhost:8090/api/customer/genovaai/dashboard/stats', {
+      const statsRes = await fetch('/api/customer/genovaai/dashboard/stats', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const statsData = await statsRes.json();

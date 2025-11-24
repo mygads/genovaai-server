@@ -42,7 +42,7 @@ export default function DashboardLayout({
 
     // Try a simple API call to check if token is still valid
     try {
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/profile', {
+      const response = await fetch('/api/customer/genovaai/profile', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -78,7 +78,7 @@ export default function DashboardLayout({
 
     // Try to fetch fresh profile data
     try {
-      const response = await fetch('http://localhost:8090/api/customer/genovaai/profile', {
+      const response = await fetch('/api/customer/genovaai/profile', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

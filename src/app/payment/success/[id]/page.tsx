@@ -31,7 +31,7 @@ export default function PaymentSuccessPage() {
       const token = localStorage.getItem('accessToken');
       
       // Fetch payment
-      const paymentRes = await fetch(`http://localhost:8090/api/customer/genovaai/payment/${paymentId}`, {
+      const paymentRes = await fetch(`/api/customer/genovaai/payment/${paymentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -43,7 +43,7 @@ export default function PaymentSuccessPage() {
         
         // Fetch transaction
         if (paymentData.data.transactionId) {
-          const transactionRes = await fetch(`http://localhost:8090/api/customer/genovaai/transactions/${paymentData.data.transactionId}`, {
+          const transactionRes = await fetch(`/api/customer/genovaai/transactions/${paymentData.data.transactionId}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },

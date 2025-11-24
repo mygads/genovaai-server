@@ -81,7 +81,7 @@ export default function UsagePage() {
         return;
       }
       
-      let url = `http://localhost:8090/api/customer/genovaai/usage?period=${period}`;
+      let url = `/api/customer/genovaai/usage?period=${period}`;
       if (period === 'custom' && startDate) {
         url += `&startDate=${startDate}`;
         if (endDate) {

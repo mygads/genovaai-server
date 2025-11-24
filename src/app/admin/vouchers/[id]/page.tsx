@@ -56,7 +56,7 @@ export default function VoucherDetailPage() {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `http://localhost:8090/api/admin/genovaai/vouchers/${params.id}`,
+        `/api/admin/genovaai/vouchers/${params.id}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -78,7 +78,7 @@ export default function VoucherDetailPage() {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `http://localhost:8090/api/admin/genovaai/vouchers/${params.id}/usages`,
+        `/api/admin/genovaai/vouchers/${params.id}/usages`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -100,7 +100,7 @@ export default function VoucherDetailPage() {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `http://localhost:8090/api/admin/genovaai/vouchers/${params.id}`,
+        `/api/admin/genovaai/vouchers/${params.id}`,
         {
           method: 'PATCH',
           headers: {
@@ -125,7 +125,7 @@ export default function VoucherDetailPage() {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `http://localhost:8090/api/admin/genovaai/vouchers/${params.id}`,
+        `/api/admin/genovaai/vouchers/${params.id}`,
         {
           method: 'DELETE',
           headers: {

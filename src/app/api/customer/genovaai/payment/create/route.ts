@@ -66,7 +66,8 @@ export async function POST(request: NextRequest) {
     let voucherData: VoucherValidation['data'] | null = null;
     if (voucherCode) {
       try {
-        const voucherResponse = await fetch('http://localhost:8090/api/customer/genovaai/vouchers/validate', {
+        const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://genova.genfity.com';
+        const voucherResponse = await fetch(`${baseUrl}/api/customer/genovaai/vouchers/validate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
