@@ -42,9 +42,8 @@ export default function SettingsPage() {
   });
 
   const providers = [
-    { value: 'openai', label: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'], requiresPremium: true },
-    { value: 'anthropic', label: 'Anthropic', models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'], requiresPremium: true },
-    { value: 'google', label: 'Google', models: ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'], requiresPremium: true },
+    { value: 'openai-premium', label: 'OpenAI Premium', models: ['gpt-5.1', 'gpt-5.1-mini', 'gpt-5.1-turbo', 'gpt-4.5-turbo'], requiresPremium: true },
+    { value: 'gemini-premium', label: 'Gemini Premium', models: ['gemini-3.0-pro'], requiresPremium: true },
     { value: 'gemini', label: 'Gemini', models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash-lite'], requiresPremium: false },
   ];
 

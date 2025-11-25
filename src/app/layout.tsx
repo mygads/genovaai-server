@@ -18,8 +18,8 @@ export const metadata: Metadata = {
     default: "Genova AI - Asisten AI Pintar untuk Kuis, Belajar, Riset & Memahami Konsep Sulit",
     template: "%s | Genova AI"
   },
-  description: "Chrome Extension AI terbaik dengan Gemini 2.0 Pro & GPT-4 untuk menjawab pertanyaan, menjelaskan konsep sulit, riset cepat, dan membantu belajar. Gratis 5 kredit premium! Hanya Rp 500/kredit.",
-  keywords: ["genovaai", "ai assistant indonesia", "chrome extension ai", "asisten belajar ai", "riset dengan ai", "pahami konsep sulit", "gemini pro indonesia", "gpt-4 indonesia", "ai research assistant", "homework helper", "study ai tool"],
+  description: "Chrome Extension AI terbaik dengan Gemini 3.0 Pro & GPT-5.1 untuk menjawab pertanyaan, menjelaskan konsep sulit, riset cepat, dan membantu belajar. Gratis 5 kredit premium! Hanya Rp 500/kredit.",
+  keywords: ["genovaai", "ai assistant indonesia", "chrome extension ai", "asisten belajar ai", "riset dengan ai", "pahami konsep sulit", "gemini pro indonesia", "gpt-5.1 indonesia", "ai research assistant", "homework helper", "study ai tool"],
   authors: [{ name: "PT Generation Infinity Indonesia", url: "https://genova.genfity.com" }],
   creator: "PT Generation Infinity Indonesia",
   publisher: "PT Generation Infinity Indonesia",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     locale: 'id_ID',
     url: 'https://genova.genfity.com',
     title: 'Genova AI - Asisten AI untuk Kuis, Belajar & Riset',
-    description: 'Chrome Extension AI dengan Gemini 2.0 Pro & GPT-4. Gratis 5 kredit premium! Mulai dari Rp 500/kredit.',
+    description: 'Chrome Extension AI dengan Gemini 3.0 Pro & GPT-5.1. Gratis 5 kredit premium! Mulai dari Rp 500/kredit.',
     siteName: 'Genova AI',
   },
   twitter: {

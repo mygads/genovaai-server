@@ -3,11 +3,11 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Genova AI - Asisten AI Pintar untuk Belajar, Riset & Memahami Konsep Sulit | Gemini & GPT",
-  description: "Genova AI: Chrome Extension AI terbaik dengan Gemini 2.0 Pro & GPT-4 untuk menjawab pertanyaan, menjelaskan konsep sulit, riset cepat, dan membantu belajar. Gratis 5 kredit premium! Hanya Rp 500/kredit. Support PDF, custom knowledge base.",
-  keywords: "genovaai, genova, kuis ai, extension kuis, ai assistant indonesia, chrome extension ai, asisten belajar ai, riset dengan ai, pahami konsep sulit, gemini pro indonesia, gpt-4 indonesia, ai untuk mahasiswa, ai research assistant, homework helper, study ai tool",
+  description: "Genova AI: Chrome Extension AI terbaik dengan Gemini 3.0 Pro & GPT-5.1 untuk menjawab pertanyaan, menjelaskan konsep sulit, riset cepat, dan membantu belajar. Gratis 5 kredit premium! Hanya Rp 300/kredit. Support PDF, custom knowledge base.",
+  keywords: "genovaai, genova, kuis ai, extension kuis, ai assistant indonesia, chrome extension ai, asisten belajar ai, riset dengan ai, pahami konsep sulit, gemini pro indonesia, gpt-5.1 indonesia, ai untuk mahasiswa, ai research assistant, homework helper, study ai tool",
   openGraph: {
     title: "Genova AI - Asisten AI Pintar untuk Belajar & Riset",
-    description: "Chrome Extension AI dengan Gemini 2.0 Pro & GPT-4. Gratis 5 kredit premium! Mulai dari Rp 500/kredit. Jawab pertanyaan, pahami konsep sulit, riset cepat.",
+    description: "Chrome Extension AI dengan Gemini 3.0 Pro & GPT-5.1. Gratis 5 kredit premium! Mulai dari Rp 300/kredit. Jawab pertanyaan, pahami konsep sulit, riset cepat.",
     type: "website",
     locale: "id_ID",
   },
@@ -89,15 +89,15 @@ export default function Home() {
         </div>
         <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
           Belajar, Riset & Pahami Konsep Sulit dengan
-          <span className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent"> AI Gemini & GPT</span>
+          <span className="bg-lineaer-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent"> AI Gemini & GPT</span>
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-10">
-          Genova AI membantu Anda mendapatkan jawaban cepat, memahami konsep yang sulit, melakukan riset, dan belajar lebih efektif. Didukung Gemini 2.0 Pro & GPT-4 dengan knowledge base custom, upload PDF, dan analisis mendalam.
+          Genova AI membantu Anda mendapatkan jawaban cepat, memahami konsep yang sulit, melakukan riset, dan belajar lebih efektif. Didukung Gemini 3.0 Pro & GPT-5.1 dengan knowledge base custom, upload PDF, dan analisis mendalam.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Link 
             href="/register" 
-            className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl text-lg font-semibold"
+            className="px-8 py-4 bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl text-lg font-semibold"
           >
             Mulai Gratis
           </Link>
@@ -179,7 +179,7 @@ export default function Home() {
             </div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Premium AI Models</h3>
             <p className="text-gray-600 dark:text-gray-300">
-              Akses ke Gemini 2.0 Pro, GPT-4, dan model premium lainnya. Reasoning lebih baik, analisis mendalam, jawaban lebih akurat, dan response lebih cepat.
+              Akses ke Gemini 3.0 Pro, GPT-5.1, dan model premium lainnya. Reasoning lebih baik, analisis mendalam, jawaban lebih akurat, dan response lebih cepat.
             </p>
           </div>
         </div>
@@ -282,7 +282,7 @@ export default function Home() {
             <ul className="space-y-3 mb-8">
               <li className="flex items-start gap-2">
                 <span className="text-yellow-300 mt-1">★</span>
-                <span>Gemini 2.0 Flash & Pro Preview</span>
+                <span>Gemini 3.0 Flash & Pro Preview</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-yellow-300 mt-1">★</span>
@@ -645,8 +645,8 @@ export default function Home() {
               <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-3">🤖 Model Selection</h4>
               <p className="text-gray-600 dark:text-gray-300 mb-3">Pilih model AI yang digunakan:</p>
               <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                <li><strong>Gemini 2.0 Flash:</strong> Cepat & efisien (Free/Pool)</li>
-                <li><strong>Gemini 2.0 Pro:</strong> Reasoning terbaik (Premium)</li>
+                <li><strong>Gemini 3.0 Flash:</strong> Cepat & efisien (Free/Pool)</li>
+                <li><strong>Gemini 3.0 Pro:</strong> Reasoning terbaik (Premium)</li>
                 <li><strong>Custom:</strong> Model lain sesuai ketersediaan</li>
               </ul>
             </div>
@@ -733,7 +733,7 @@ export default function Home() {
               <ul className="space-y-2">
                 <li>• <strong>Mode Gratis (Free):</strong> Gunakan API key Gemini Anda sendiri - unlimited dan gratis!</li>
                 <li>• <strong>Mode Free Pool:</strong> Pakai pool API key gratis (butuh saldo minimal Rp 1 sebagai verifikasi)</li>
-                <li>• <strong>Mode Premium:</strong> Hanya <strong>Rp 500 per request</strong> untuk akses model premium (Gemini 2.0 Pro, GPT-4, dll)</li>
+                <li>• <strong>Mode Premium:</strong> Hanya <strong>Rp 500 per request</strong> untuk akses model premium (Gemini 3.0 Pro, GPT-5.1, dll)</li>
               </ul>
               <p className="mt-3 text-green-600 dark:text-green-400 font-bold">🎁 Bonus: Dapatkan 5 kredit premium GRATIS dengan kode voucher NEWUSERPRAK saat register!</p>
             </div>
@@ -788,9 +788,9 @@ export default function Home() {
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
               <p className="mb-3"><strong>Genova AI mendukung berbagai model AI terkini:</strong></p>
               <ul className="space-y-2">
-                <li>• <strong>Google Gemini 2.0 Flash:</strong> Cepat dan efisien (Free & Pool mode)</li>
-                <li>• <strong>Google Gemini 2.0 Pro:</strong> Reasoning terbaik, analisis mendalam (Premium)</li>
-                <li>• <strong>OpenAI GPT-4:</strong> Powerful untuk creative writing & complex reasoning (Premium)</li>
+                <li>• <strong>Google Gemini 3.0 Flash:</strong> Cepat dan efisien (Free & Pool mode)</li>
+                <li>• <strong>Google Gemini 3.0 Pro:</strong> Reasoning terbaik, analisis mendalam (Premium)</li>
+                <li>• <strong>OpenAI GPT-5.1:</strong> Powerful untuk creative writing & complex reasoning (Premium)</li>
                 <li>• Dan model premium lainnya yang terus diupdate</li>
               </ul>
               <p className="mt-3">Mode Free: Gunakan model yang didukung API key Anda. Mode Premium: Akses semua model premium dengan 1 kredit per request.</p>
