@@ -124,7 +124,7 @@ export class LLMGatewayService {
     const answerMode = session.answerMode as 'single' | 'short' | 'medium' | 'long';
     
     const cachingConfig = getCachingConfig(model, knowledgeLength);
-    const thinkingConfig = getThinkingConfig(model, answerMode);
+    const thinkingConfig = this.getThinkingConfig(model);
 
     // Build full request with session data
     const fullRequest: FullRequest = {
@@ -376,20 +376,19 @@ export class LLMGatewayService {
         generationConfig.thinkingConfig = { thinkingBudget: thinkingConfig.thinkingBudget };
       }
     }
+    
+    // Force thinking mode for gemini-2.5-pro (required by model)
+    if (model === 'gemini-2.5-pro' && !generationConfig.thinkingConfig) {
+      generationConfig.thinkingConfig = { thinkingBudget: 8192 };
+    }
 
     // System instruction (role, instructions, constraints, output format)
     const systemInstruction: Record<string, unknown> = { parts: [{ text: systemPrompt }] };
     
-    // Enable caching for large contexts (reduces costs for repeated requests)
-    if (cachingConfig?.enabled && knowledge) {
-      const estimatedTokens = Math.floor(knowledge.length / 4); // Rough estimate: 1 token ≈ 4 chars
-      if (estimatedTokens >= cachingConfig.minTokens) {
-        systemInstruction.cachedContent = {
-          content: knowledge,
-          ttl: `${cachingConfig.ttlSeconds}s`,
-        };
-      }
-    }
+    // Note: Context caching requires separate API call to create cached content first
+    // Disabled inline caching to prevent "Unknown name cachedContent" error
+    // TODO: Implement proper Context Caching API flow if needed
+    // Reference: https://ai.google.dev/gemini-api/docs/caching
 
     const response = await fetch(url, {
       method: 'POST',

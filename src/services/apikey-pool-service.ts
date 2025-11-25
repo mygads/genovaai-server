@@ -18,7 +18,8 @@ export class ApiKeyPoolService {
         userId,
         status: 'active',
         OR: [
-          { dailyQuotaDate: { not: today } }, // Not used today
+          { dailyQuotaDate: null }, // Never used
+          { dailyQuotaDate: { not: today } }, // Used on different day
           { 
             AND: [
               { dailyQuotaDate: today },
@@ -47,7 +48,8 @@ export class ApiKeyPoolService {
         userId: null, // Admin keys
         status: 'active',
         OR: [
-          { dailyQuotaDate: { not: today } },
+          { dailyQuotaDate: null }, // Never used
+          { dailyQuotaDate: { not: today } }, // Used on different day
           { 
             AND: [
               { dailyQuotaDate: today },
