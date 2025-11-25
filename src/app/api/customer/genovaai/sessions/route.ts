@@ -41,8 +41,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    console.log('[Create Session] Request body:', JSON.stringify(body, null, 2));
+    
     const validation = createSessionSchema.safeParse(body);
     if (!validation.success) {
+      console.error('[Create Session] Validation failed:', validation.error.issues);
       return NextResponse.json(
         { success: false, error: 'Validation failed', details: validation.error.issues },
         { status: 400 }
@@ -64,12 +67,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate free_pool mode - requires balance
+    // Validate free_pool mode - requires balance only (not credits)
     if (data.requestMode === 'free_pool') {
       const balance = parseFloat(user.balance.toString());
       if (balance <= 0) {
         return NextResponse.json(
-          { success: false, error: 'Free Pool mode requires balance. Please top up first.' },
+          { success: false, error: 'Free Pool mode requires balance. Please top up balance first.' },
           { status: 400 }
         );
       }

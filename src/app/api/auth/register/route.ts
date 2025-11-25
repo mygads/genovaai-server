@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password);
     
-    // Create user with welcome bonus (10 credits)
+    // Create user (no initial bonus)
     const user = await prisma.user.create({
       data: {
         email,
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         name,
         phone,
         role: 'customer',
-        credits: 10, // Welcome bonus
+        credits: 0,
         balance: 0,
         subscriptionStatus: 'free',
         isActive: true,
@@ -81,18 +81,6 @@ export async function POST(request: NextRequest) {
         balance: true,
         subscriptionStatus: true,
         createdAt: true,
-      },
-    });
-    
-    // Log welcome bonus transaction
-    await prisma.creditTransaction.create({
-      data: {
-        userId: user.id,
-        type: 'welcome_bonus',
-        amount: 0,
-        credits: 10,
-        description: 'Welcome bonus - 10 free credits',
-        status: 'completed',
       },
     });
     

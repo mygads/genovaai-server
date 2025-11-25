@@ -265,12 +265,35 @@ export default function HistoryPage() {
 
                   <div>
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Answer</p>
-                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 max-h-64 overflow-y-auto text-sm">
-                      <p className="text-gray-900 dark:text-white whitespace-pre-wrap">
+                    <div className={`rounded-lg p-3 max-h-64 overflow-y-auto text-sm ${
+                      selectedItem.answer.startsWith('[Error]')
+                        ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                        : 'bg-blue-50 dark:bg-blue-900/20'
+                    }`}>
+                      <p className={`whitespace-pre-wrap ${
+                        selectedItem.answer.startsWith('[Error]')
+                          ? 'text-red-900 dark:text-red-100 font-medium'
+                          : 'text-gray-900 dark:text-white'
+                      }`}>
                         {selectedItem.answer}
                       </p>
                     </div>
                   </div>
+
+                  {/* User Prompt (Full request sent to LLM) */}
+                  {selectedItem.userPrompt && (
+                    <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FaCode className="w-3 h-3 text-blue-600" />
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Full Request Content</p>
+                      </div>
+                      <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg p-3 max-h-40 overflow-y-auto text-xs">
+                        <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                          {selectedItem.userPrompt}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Request Info */}
                   {selectedItem.llmRequest && (

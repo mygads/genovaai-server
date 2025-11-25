@@ -571,23 +571,24 @@ export class LLMGatewayService {
         },
       });
 
-      // Create chat history if successful, linking to session
-      if (response.success && response.answer) {
-        await prisma.chatHistory.create({
-          data: {
-            userId: request.userId,
-            sessionId: sessionDbId, // Use database ID, not sessionId string
-            llmRequestId: llmRequest.id,
-            question: request.question,
-            answer: response.answer,
-            answerMode: request.answerMode, // Captured from session at time of request
-            // Save detailed context
-            userPrompt: request.question, // User's original question
-            systemPrompt: request.systemPrompt, // System prompt used
-            knowledgeContext: request.knowledgeContext, // Knowledge text if any
-          },
-        });
-      }
+      // Create chat history for both success and error, linking to session
+      // This allows users to see all their requests including errors
+      await prisma.chatHistory.create({
+        data: {
+          userId: request.userId,
+          sessionId: sessionDbId, // Use database ID, not sessionId string
+          llmRequestId: llmRequest.id,
+          question: request.question,
+          answer: response.success && response.answer 
+            ? response.answer 
+            : `[Error] ${response.error || 'Request failed'}`,
+          answerMode: request.answerMode, // Captured from session at time of request
+          // Save detailed context
+          userPrompt: request.question, // User's original question
+          systemPrompt: request.systemPrompt, // System prompt used
+          knowledgeContext: request.knowledgeContext, // Knowledge text if any
+        },
+      });
     } catch (error) {
       console.error('Failed to log LLM request:', error);
     }

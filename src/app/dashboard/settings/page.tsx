@@ -25,7 +25,9 @@ export default function SettingsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [userApiKeys, setUserApiKeys] = useState<Array<{ id: string; status: string }>>([]);
-  const [knowledgeFiles, setKnowledgeFiles] = useState<Array<{ id: string; fileName: string }>>([]);
+  const [knowledgeFiles, setKnowledgeFiles] = useState<Array<{ id: string; fileName: string; extractedText: string | null; fileType: string }>>([]);
+  const [selectedFilePreview, setSelectedFilePreview] = useState<{ id: string; fileName: string; text: string } | null>(null);
+  const [systemSettings, setSystemSettings] = useState<{ premium_mode_enabled?: boolean }>({});
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [newSession, setNewSession] = useState({
@@ -50,7 +52,7 @@ export default function SettingsPage() {
   const requestModes = [
     { value: 'premium', label: 'Premium Mode', description: 'Use credits' },
     { value: 'free_user_key', label: 'Free Mode', description: 'Use your API keys' },
-    { value: 'free_pool', label: 'Free Pool', description: 'Use shared pool' },
+    { value: 'free_pool', label: 'Free Pool', description: 'Use balance (shared pool)' },
   ];
 
   const answerModes = [
@@ -65,15 +67,41 @@ export default function SettingsPage() {
     fetchUser();
     fetchUserApiKeys();
     fetchKnowledgeFiles();
+    fetchSystemSettings();
   }, []);
 
   async function fetchUser() {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        setUser(JSON.parse(userData));
-      } catch (e) {
-        console.error('Failed to parse user:', e);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/customer/genovaai/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      console.log('[Fetch User] Profile data:', data);
+      if (data.success && data.data) {
+        console.log('[Fetch User] User balance:', data.data.balance, 'Credits:', data.data.credits);
+        setUser(data.data);
+        // Update localStorage with fresh data
+        localStorage.setItem('user', JSON.stringify(data.data));
+      } else {
+        // Fallback to localStorage if API fails
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          setUser(JSON.parse(userData));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      // Fallback to localStorage
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        try {
+          setUser(JSON.parse(userData));
+        } catch (e) {
+          console.error('Failed to parse user:', e);
+        }
       }
     }
   }
@@ -112,6 +140,23 @@ export default function SettingsPage() {
     }
   }
 
+  async function fetchSystemSettings() {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/customer/genovaai/system-settings', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.success && data.data) {
+        setSystemSettings(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching system settings:', error);
+    }
+  }
+
   async function fetchSessions() {
     try {
       const token = localStorage.getItem('accessToken');
@@ -141,12 +186,28 @@ export default function SettingsPage() {
       return;
     }
 
+    // Validate premium mode
+    if (newSession.requestMode === 'premium') {
+      const credits = user?.credits || 0;
+      if (credits < 1) {
+        alert('Premium Mode requires credits. Please top up credits first.');
+        return;
+      }
+    }
+
     // Validate free_pool mode
     if (newSession.requestMode === 'free_pool') {
       const balance = parseFloat(user?.balance || '0');
-      const credits = user?.credits || 0;
-      if (balance <= 0 && credits < 1) {
-        alert('Free Pool mode requires balance or credits. Please top up or exchange balance to credits first.');
+      if (balance <= 0) {
+        alert('Free Pool mode requires balance. Please top up balance first.');
+        return;
+      }
+    }
+
+    // Validate free_user_key mode
+    if (newSession.requestMode === 'free_user_key') {
+      if (userApiKeys.length === 0) {
+        alert('Free Mode requires at least one API key. Please add an API key first.');
         return;
       }
     }
@@ -164,15 +225,30 @@ export default function SettingsPage() {
       
       if (editingId) {
         // Update existing session
+        // Prepare payload - remove useKnowledge field as it's not in the schema
+        const payload = {
+          sessionName: newSession.sessionName,
+          requestMode: newSession.requestMode,
+          provider: newSession.provider,
+          model: newSession.model,
+          answerMode: newSession.answerMode,
+          systemPrompt: newSession.systemPrompt,
+          useCustomPrompt: newSession.useCustomPrompt,
+          customSystemPrompt: newSession.customSystemPrompt,
+          knowledgeFileIds: newSession.knowledgeFileIds || [],
+        };
+        
+        console.log('[Update Session] Sending data:', payload);
         const response = await fetch(`/api/customer/genovaai/sessions/${editingId}`, {
           method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(newSession),
+          body: JSON.stringify(payload),
         });
         const data = await response.json();
+        console.log('[Update Session] Response:', data);
         if (data.success) {
           setSessions(sessions.map(s => s.sessionId === editingId ? data.data : s));
           setNewSession({
@@ -190,19 +266,35 @@ export default function SettingsPage() {
           setShowAddForm(false);
           setEditingId(null);
         } else {
-          alert(data.message || 'Failed to update session');
+          console.error('[Update Session] Error:', data);
+          alert(data.error || data.message || 'Failed to update session');
         }
       } else {
         // Create new session
+        // Prepare payload - remove useKnowledge field as it's not in the schema
+        const payload = {
+          sessionName: newSession.sessionName,
+          requestMode: newSession.requestMode,
+          provider: newSession.provider,
+          model: newSession.model,
+          answerMode: newSession.answerMode,
+          systemPrompt: newSession.systemPrompt,
+          useCustomPrompt: newSession.useCustomPrompt,
+          customSystemPrompt: newSession.customSystemPrompt,
+          knowledgeFileIds: newSession.knowledgeFileIds || [],
+        };
+        
+        console.log('[Create Session] Sending data:', payload);
         const response = await fetch('/api/customer/genovaai/sessions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(newSession),
+          body: JSON.stringify(payload),
         });
         const data = await response.json();
+        console.log('[Create Session] Response:', data);
         if (data.success) {
           setSessions([...sessions, data.data]);
           setNewSession({
@@ -219,7 +311,8 @@ export default function SettingsPage() {
           });
           setShowAddForm(false);
         } else {
-          alert(data.message || 'Failed to create session');
+          console.error('[Create Session] Error:', data);
+          alert(data.error || data.message || 'Failed to create session');
         }
       }
     } catch (error) {
@@ -322,6 +415,54 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
+      {/* File Preview Modal */}
+      {selectedFilePreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Extracted Text Preview
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {selectedFilePreview.fileName}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedFilePreview(null)}
+                className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">
+                  {selectedFilePreview.text}
+                </pre>
+              </div>
+              {selectedFilePreview.text.length < 50 && (
+                <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    ⚠️ <strong>Extraction may have failed</strong> - The extracted text is too short. Please check if the file was uploaded correctly.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setSelectedFilePreview(null)}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Extension Settings</h1>
@@ -345,6 +486,47 @@ export default function SettingsPage() {
             <CardTitle>{editingId ? 'Edit Session' : 'Create New Session'}</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* User Balance Info */}
+            {user && (
+              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">Your Account Status</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-blue-700 dark:text-blue-300">Credits:</span>
+                        <span className={`ml-2 font-semibold ${(user.credits || 0) > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {user.credits || 0}
+                        </span>
+                        {(user.credits || 0) < 1 && (
+                          <a href="/dashboard/balance/topup" className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:underline">
+                            Top up →
+                          </a>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-blue-700 dark:text-blue-300">Balance:</span>
+                        <span className={`ml-2 font-semibold ${parseFloat(user.balance || '0') > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          Rp {parseFloat(user.balance || '0').toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 dark:text-blue-300">API Keys:</span>
+                        <span className={`ml-2 font-semibold ${userApiKeys.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {userApiKeys.length}
+                        </span>
+                        {userApiKeys.length === 0 && (
+                          <a href="/dashboard/apikeys" className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:underline">
+                            Add key →
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -365,10 +547,23 @@ export default function SettingsPage() {
                 </label>
                 <div className="grid grid-cols-3 gap-3">
                   {requestModes.map((mode) => {
+                    const isPremiumModeDisabled = systemSettings.premium_mode_enabled === false;
+                    const isPremiumDisabled = mode.value === 'premium' && 
+                      (isPremiumModeDisabled || !user || (user.credits || 0) < 1);
                     const isFreePoolDisabled = mode.value === 'free_pool' && 
-                      (!user || (parseFloat(user.balance || '0') <= 0 && (user.credits || 0) < 1));
+                      (!user || parseFloat(user.balance || '0') <= 0);
                     const isFreeUserKeyDisabled = mode.value === 'free_user_key' && userApiKeys.length === 0;
-                    const isDisabled = isFreePoolDisabled || isFreeUserKeyDisabled;
+                    const isDisabled = isPremiumDisabled || isFreePoolDisabled || isFreeUserKeyDisabled;
+                    
+                    if (mode.value === 'free_pool') {
+                      console.log('[Free Pool Check]', {
+                        user,
+                        balance: user?.balance,
+                        parsedBalance: parseFloat(user?.balance || '0'),
+                        isFreePoolDisabled,
+                      });
+                    }
+                    
                     return (
                       <button
                         key={mode.value}
@@ -393,11 +588,17 @@ export default function SettingsPage() {
                         <div className="font-medium text-gray-900 dark:text-white">{mode.label}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {mode.description}
+                          {mode.value === 'premium' && isPremiumModeDisabled && (
+                            <span className="block text-orange-500 mt-1 font-medium">🔧 Under Maintenance</span>
+                          )}
+                          {mode.value === 'premium' && !isPremiumModeDisabled && (user?.credits || 0) < 1 && (
+                            <span className="block text-red-500 mt-1 font-medium">Top up credits first</span>
+                          )}
                           {mode.value === 'free_pool' && isFreePoolDisabled && (
-                            <span className="block text-red-500 mt-1">Requires balance or credits</span>
+                            <span className="block text-red-500 mt-1 font-medium">Requires balance</span>
                           )}
                           {mode.value === 'free_user_key' && isFreeUserKeyDisabled && (
-                            <span className="block text-red-500 mt-1">Add API key first</span>
+                            <span className="block text-red-500 mt-1 font-medium">Add API key first</span>
                           )}
                         </div>
                       </button>
@@ -576,7 +777,31 @@ export default function SettingsPage() {
                               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                                 {file.fileName}
                               </p>
+                              {file.extractedText && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                                  {file.extractedText.substring(0, 100)}...
+                                </p>
+                              )}
                             </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (file.extractedText) {
+                                  setSelectedFilePreview({
+                                    id: file.id,
+                                    fileName: file.fileName,
+                                    text: file.extractedText
+                                  });
+                                } else {
+                                  alert('No extracted text available for this file. The extraction may have failed.');
+                                }
+                              }}
+                              className="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                            >
+                              Preview
+                            </button>
                           </label>
                         ))}
                       </div>

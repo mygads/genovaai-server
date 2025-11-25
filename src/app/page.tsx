@@ -943,17 +943,79 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">G</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            {/* Brand Section */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">G</span>
+                </div>
+                <span className="text-lg font-bold text-gray-900 dark:text-white">Genova AI</span>
               </div>
-              <span className="text-lg font-bold text-gray-900 dark:text-white">Genova AI</span>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                Asisten AI Pintar untuk Belajar, Riset & Memahami Konsep Sulit
+              </p>
             </div>
-            <p className="text-gray-600 dark:text-gray-400 text-sm">
-              © 2025 Genova AI. All rights reserved.
-            </p>
+
+            {/* Contact Support */}
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Contact Support</h3>
+              <div className="space-y-3 text-sm">
+                <p className="text-gray-600 dark:text-gray-400">
+                  <strong className="text-gray-900 dark:text-white">Email:</strong><br />
+                  <a href="mailto:genfity@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">
+                    genfity@gmail.com
+                  </a>
+                </p>
+                <p className="text-gray-600 dark:text-gray-400">
+                  <strong className="text-gray-900 dark:text-white">Phone:</strong><br />
+                  +62 851 7431 4023
+                </p>
+                <p className="text-gray-600 dark:text-gray-400">
+                  <strong className="text-gray-900 dark:text-white">Address:</strong><br />
+                  Margahayu, Bandung<br />
+                  Indonesia
+                </p>
+                <p className="text-gray-600 dark:text-gray-400">
+                  <strong className="text-gray-900 dark:text-white">Operating Hours:</strong><br />
+                  Monday - Friday: 09:00 - 17:00<br />
+                  Saturday: 09:00 - 15:00<br />
+                  Sunday: Closed
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Quick Links</h3>
+              <div className="space-y-2 text-sm">
+                <Link href="/login" className="block text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                  Login
+                </Link>
+                <Link href="/register" className="block text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                  Register
+                </Link>
+                <Link href="/dashboard" className="block text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                  Dashboard
+                </Link>
+                <a href="https://genfity.com" target="_blank" rel="noopener noreferrer" className="block text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                  Visit genfity.com
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+              <p>
+                © 2025 Genova AI. All rights reserved.
+              </p>
+              <p>
+                Developed by <a href="https://genfity.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline font-semibold">PT Generation Infinity Indonesia</a>
+              </p>
+            </div>
           </div>
         </div>
       </footer>

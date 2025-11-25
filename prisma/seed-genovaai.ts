@@ -386,8 +386,25 @@ Faktor yang mempengaruhi:
     },
   });
 
+  await prisma.systemConfig.upsert({
+    where: { key: 'premium_mode_enabled' },
+    update: {
+      value: 'true',
+      updatedAt: new Date(),
+    },
+    create: {
+      key: 'premium_mode_enabled',
+      value: 'true',
+      type: 'boolean',
+      category: 'features',
+      label: 'Premium Mode Availability',
+      description: 'Enable or disable Premium Mode for all users. When disabled, users will see "Under Maintenance" message.',
+    },
+  });
+
   console.log('✅ System configuration created');
   console.log('   - Exchange Rate: Rp 500 = 1 Credit');
+  console.log('   - Premium Mode: Enabled');
 }
 
 seedGenovaAI()

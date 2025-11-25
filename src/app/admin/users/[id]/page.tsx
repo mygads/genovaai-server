@@ -33,6 +33,35 @@ export default function UserDetailPage() {
   const [creditAmount, setCreditAmount] = useState('');
   const [creditDescription, setCreditDescription] = useState('');
   const [showAddCredits, setShowAddCredits] = useState(false);
+  
+  // New states for balance/credits adjustment
+  const [showAdjustBalance, setShowAdjustBalance] = useState(false);
+  const [showAdjustCredits, setShowAdjustCredits] = useState(false);
+  const [adjustType, setAdjustType] = useState<'add' | 'deduct'>('add');
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [adjusting, setAdjusting] = useState(false);
+
+  // Reason templates
+  const reasonTemplates = {
+    add: [
+      'Bonus untuk aktivitas positif',
+      'Kompensasi atas kesalahan sistem',
+      'Promosi spesial',
+      'Reward loyalitas',
+      'Gift dari admin',
+      'Custom...',
+    ],
+    deduct: [
+      'Penarikan karena aktivitas tidak valid',
+      'Pelanggaran terms of service',
+      'Penyalahgunaan layanan',
+      'Fraud detection',
+      'Refund ke payment method',
+      'Custom...',
+    ],
+  };
 
   useEffect(() => {
     fetchUser();
@@ -120,6 +149,106 @@ export default function UserDetailPage() {
       }
     } catch (error) {
       console.error('Failed to update user:', error);
+    }
+  }
+
+  async function handleAdjustBalance(e: React.FormEvent) {
+    e.preventDefault();
+    if (!adjustAmount || !adjustReason) {
+      alert('Please fill all fields');
+      return;
+    }
+
+    const finalReason = adjustReason === 'Custom...' ? customReason : adjustReason;
+    if (!finalReason) {
+      alert('Please provide a reason');
+      return;
+    }
+
+    setAdjusting(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(
+        `/api/admin/genovaai/users/${params.id}/balance`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: parseFloat(adjustAmount),
+            type: adjustType,
+            reason: finalReason,
+          }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        alert(data.message || 'Balance adjusted successfully');
+        setShowAdjustBalance(false);
+        setAdjustAmount('');
+        setAdjustReason('');
+        setCustomReason('');
+        fetchUser();
+      } else {
+        alert(data.error || 'Failed to adjust balance');
+      }
+    } catch (error) {
+      console.error('Failed to adjust balance:', error);
+      alert('Failed to adjust balance');
+    } finally {
+      setAdjusting(false);
+    }
+  }
+
+  async function handleAdjustCredits(e: React.FormEvent) {
+    e.preventDefault();
+    if (!adjustAmount || !adjustReason) {
+      alert('Please fill all fields');
+      return;
+    }
+
+    const finalReason = adjustReason === 'Custom...' ? customReason : adjustReason;
+    if (!finalReason) {
+      alert('Please provide a reason');
+      return;
+    }
+
+    setAdjusting(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(
+        `/api/admin/genovaai/users/${params.id}/credits-adjust`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: parseInt(adjustAmount),
+            type: adjustType,
+            reason: finalReason,
+          }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        alert(data.message || 'Credits adjusted successfully');
+        setShowAdjustCredits(false);
+        setAdjustAmount('');
+        setAdjustReason('');
+        setCustomReason('');
+        fetchUser();
+      } else {
+        alert(data.error || 'Failed to adjust credits');
+      }
+    } catch (error) {
+      console.error('Failed to adjust credits:', error);
+      alert('Failed to adjust credits');
+    } finally {
+      setAdjusting(false);
     }
   }
 
@@ -254,14 +383,210 @@ export default function UserDetailPage() {
                   </button>
                 </div>
               </form>
+            ) : showAdjustBalance ? (
+              <form onSubmit={handleAdjustBalance} className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setAdjustType('add')}
+                    className={`flex-1 py-2 px-3 rounded-lg font-medium transition-colors ${
+                      adjustType === 'add'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdjustType('deduct')}
+                    className={`flex-1 py-2 px-3 rounded-lg font-medium transition-colors ${
+                      adjustType === 'deduct'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    Deduct
+                  </button>
+                </div>
+                
+                <input
+                  type="number"
+                  value={adjustAmount}
+                  onChange={(e) => setAdjustAmount(e.target.value)}
+                  placeholder="Amount (Rp)"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  required
+                  disabled={adjusting}
+                />
+                
+                <select
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  required
+                  disabled={adjusting}
+                >
+                  <option value="">Select reason...</option>
+                  {reasonTemplates[adjustType].map((reason) => (
+                    <option key={reason} value={reason}>
+                      {reason}
+                    </option>
+                  ))}
+                </select>
+                
+                {adjustReason === 'Custom...' && (
+                  <input
+                    type="text"
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                    placeholder="Enter custom reason"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    required
+                    disabled={adjusting}
+                  />
+                )}
+                
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={adjusting}
+                    className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                  >
+                    {adjusting ? 'Processing...' : `${adjustType === 'add' ? 'Add' : 'Deduct'} Balance`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAdjustBalance(false);
+                      setAdjustAmount('');
+                      setAdjustReason('');
+                      setCustomReason('');
+                    }}
+                    disabled={adjusting}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : showAdjustCredits ? (
+              <form onSubmit={handleAdjustCredits} className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setAdjustType('add')}
+                    className={`flex-1 py-2 px-3 rounded-lg font-medium transition-colors ${
+                      adjustType === 'add'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdjustType('deduct')}
+                    className={`flex-1 py-2 px-3 rounded-lg font-medium transition-colors ${
+                      adjustType === 'deduct'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    Deduct
+                  </button>
+                </div>
+                
+                <input
+                  type="number"
+                  value={adjustAmount}
+                  onChange={(e) => setAdjustAmount(e.target.value)}
+                  placeholder="Amount (Credits)"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  required
+                  disabled={adjusting}
+                />
+                
+                <select
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  required
+                  disabled={adjusting}
+                >
+                  <option value="">Select reason...</option>
+                  {reasonTemplates[adjustType].map((reason) => (
+                    <option key={reason} value={reason}>
+                      {reason}
+                    </option>
+                  ))}
+                </select>
+                
+                {adjustReason === 'Custom...' && (
+                  <input
+                    type="text"
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                    placeholder="Enter custom reason"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    required
+                    disabled={adjusting}
+                  />
+                )}
+                
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={adjusting}
+                    className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                  >
+                    {adjusting ? 'Processing...' : `${adjustType === 'add' ? 'Add' : 'Deduct'} Credits`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAdjustCredits(false);
+                      setAdjustAmount('');
+                      setAdjustReason('');
+                      setCustomReason('');
+                    }}
+                    disabled={adjusting}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             ) : (
-              <button
-                onClick={() => setShowAddCredits(true)}
-                className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors"
-              >
-                <FaPlus className="w-4 h-4" />
-                Add Manual Credits
-              </button>
+              <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => {
+                    setShowAdjustBalance(true);
+                    setAdjustType('add');
+                  }}
+                  className="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 transition-colors font-medium"
+                >
+                  <FaCreditCard className="w-4 h-4" />
+                  Adjust Balance
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAdjustCredits(true);
+                    setAdjustType('add');
+                  }}
+                  className="w-full py-2 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center justify-center gap-2 transition-colors font-medium"
+                >
+                  <FaCreditCard className="w-4 h-4" />
+                  Adjust Credits
+                </button>
+                <button
+                  onClick={() => setShowAddCredits(true)}
+                  className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors text-sm"
+                >
+                  <FaPlus className="w-4 h-4" />
+                  Add Manual Credits (Legacy)
+                </button>
+              </div>
             )}
           </CardContent>
         </Card>

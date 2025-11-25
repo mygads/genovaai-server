@@ -1,0 +1,404 @@
+BAGIAN 1 — PEMAHAMAN MENDALAM PERSONNEL ADMINISTRATION (UNIT 3)
+
+Unit ini adalah fondasi paling penting di SAP HCM karena SAP membangun seluruh data karyawan dengan struktur yang sangat disiplin, yaitu Infotype, Actions, Personnel Structure, serta Organizational Structure.
+
+Modul ini secara resmi mendefinisikan kompetensi Unit 3 sebagai:
+• Memahami infotype, karakteristik, dan pencatatan data
+• Menjalankan Personnel Actions
+• Menggunakan NWBC untuk update data (walaupun di banyak universitas sekarang diganti GUI biasa)
+
+
+HR050_EN_Col31_CO_A4
+
+⭐ 1. Infotype (Konsep Utama Personnel Administration)
+
+Infotype = unit data standar dalam SAP HCM.
+
+Screenshot kamu sudah menjelaskan contoh-contohnya:
+
+0001 — Organizational Assignment
+
+0002 — Personal Data
+
+0006 — Addresses
+
+0007 — Planned Working Time
+
+0008 — Basic Pay
+
+Modul resminya menambahkan fondasi penting:
+
+✔ Infotype memiliki karakteristik khusus (dari modul):
+
+1. Time-dependency (bergantung waktu)
+Setiap record punya tanggal mulai & berakhir. SAP menyimpan histori sepenuhnya.
+
+
+HR050_EN_Col31_CO_A4
+
+2. Field grouping
+Field tertentu bisa wajib/opsional tergantung konfigurasi negara/enterprise.
+Konfigurasi ini ditentukan melalui country grouping dan enterprise structure.
+
+3. Screens can be country-specific
+Infotype yang sama bisa punya layout berbeda di tiap negara (Indonesia vs US vs Malaysia).
+
+Screenshot kamu soal Personal Data (0002) sudah menunjukkan ini.
+
+✔ Mengapa SAP menggunakan Infotype?
+
+Karena SAP harus mampu:
+
+Integrasi dengan payroll
+
+Integrasi BPJS & pajak (di Indonesia contoh nyata)
+
+Melacak perubahan tanpa kehilangan histori
+
+Mengurangi error input manual
+
+Mendukung audit
+
+⭐ 2. Subtype (Variasi dari Infotype)
+
+Screenshot kamu memberi contoh Family Member/Dependents (0021):
+
+subtype 1 → Spouse
+
+subtype 2 → Child
+
+Modul resmi menegaskan hal yang sama:
+
+Subtypes menyediakan subkategorisasi data untuk kebutuhan payroll, benefit, atau legal, dan wajib dipakai di infotype tertentu.
+
+
+HR050_EN_Col31_CO_A4
+
+Yang tidak ada di screenshot tapi penting:
+
+✔ Contoh subtype lain yang umum:
+
+Infotype 0006 (Address):
+• Permanent
+• Temporary
+
+Infotype 0007 (Work Schedule):
+• Full-time
+• Part-time
+
+Infotype 0008 (Basic Pay):
+• Pay scale
+• Wage type grouping
+
+Subtype memastikan data sangat detail.
+
+⭐ 3. Validity Period (Konsep BESAR dalam SAP)
+
+Screenshot “Initial Entry Screen (Figure 47)” menunjukkan pemilihan periode.
+
+Modul resmi menekankan:
+
+Setiap perubahan data tidak pernah mengganti data lama
+
+SAP menggunakan “time slicing”
+
+Record baru dibuat jika ada perubahan signifikan
+
+
+HR050_EN_Col31_CO_A4
+
+Konsep inilah yang membuat SAP bisa menghitung gaji periode lampau atau BPJS bulan sebelumnya tanpa kacau.
+
+⭐ 4. Maintaining Infotypes (Create, Copy, Change, Delimit, Delete)
+
+Screenshot Figure 50 sudah sangat jelas.
+
+Tambahan dari modul resmi:
+
+Fast Entry juga ada: update banyak karyawan sekaligus (mirip Excel di SAP)
+
+
+HR050_EN_Col31_CO_A4
+
+Setiap Change hanya mempengaruhi “current record”
+
+Delimit tidak boleh overlap: SAP wajib mencegah tanggal bentrok
+
+⭐ 5. Personnel Actions (Hiring, Promotion, Transfer, Termination)
+
+Screenshot Figure 53 (Hiring Action) adalah gambaran visual proses ini.
+
+Modul resmi menambahkan:
+
+✔ Actions memicu urutan infotype otomatis
+
+Contoh Hiring:
+
+0000 – Action
+
+0001 – Org Assignment
+
+0002 – Personal Data
+
+0006 – Address
+
+0007 – Planned Working Time
+
+0008 – Basic Pay
+
+
+HR050_EN_Col31_CO_A4
+
+✔ Action reason
+
+Setiap action punya alasan (reason code) agar payroll dan admin tahu konteksnya.
+
+✔ Additional Actions (0302)
+
+Screenshot kamu (Figure 66) sudah menjelaskan.
+Modul menegaskan fitur ini penting karena 0000 hanya bisa 1 action per hari.
+
+
+HR050_EN_Col31_CO_A4
+
+⭐ 6. NWBC (NetWeaver Business Client)
+
+Modul menyebutkan bahwa dalam versi modern SAP, employee data juga dapat dikelola dari NWBC.
+
+
+HR050_EN_Col31_CO_A4
+
+Walaupun screenshot kamu pakai GUI, konsepnya sama:
+
+NWBC hanya “interface tambahan”
+
+Data tetap disimpan di infotype yang sama
+
+🔵 BAGIAN 2 — PEMAHAMAN MENDALAM SAP E-RECRUITING (UNIT 4)
+
+Dari screenshot, kamu sudah paham:
+
+Roles
+
+Talent Pool
+
+Posting Channels
+
+Reporting
+
+Integration dengan BW/BI
+
+Modul resmi menambahkan konteks besar yang tidak ada di screenshot.
+
+⭐ 7. SAP E-Recruiting: Konsep Sistem
+
+Modul menjelaskan bahwa E-Recruiting adalah:
+
+platform untuk mengotomatisasi seluruh proses rekrutmen, mulai dari:
+
+Permintaan kebutuhan tenaga kerja (requisition creation)
+
+Posting lowongan
+
+Manajemen kandidat (candidate management)
+
+Komunikasi
+
+Talent Warehouse (database kandidat)
+
+Reporting
+
+
+HR050_EN_Col31_CO_A4
+
+Screenshot kamu hanya menjelaskan role dan talent pool.
+
+Modul resmi mengisi shadow area berikut:
+
+✔ Requisition (Permintaan Hiring)
+
+Ini adalah langkah awal E-Recruiting.
+Recruiter membuat dokumen requisition → Manager approve → Baru kandidat diproses.
+
+✔ Candidate Lifecycle
+
+Tidak hanya “apply → review”
+Tapi:
+
+Registration
+
+Questionnaire
+
+Screening
+
+Selection
+
+Interview
+
+Offer
+
+Hire
+
+✔ Talent Warehouse
+
+Di screenshot kamu hanya digambarkan sebagai “pool besar”.
+Modul menekankan bahwa warehouse ini dapat digunakan lintas tahun dan lintas posisi.
+
+⭐ 8. Roles (Recruiter, Manager, Admin, Candidate)
+
+Screenshot Figure 70 menunjukkan visual role-role ini.
+
+Tambahan dari modul:
+
+✔ Role menentukan menu di NWBC
+
+Recruiter melihat menu berbeda dari Manager.
+Candidate (internal/external) punya halaman terpisah.
+
+
+HR050_EN_Col31_CO_A4
+
+✔ Security & Authorization
+
+HR tidak bisa sembarang akses data kandidat karena aturan GDPR dan data protection.
+
+⭐ 9. Talent Pool (Figure 86–87)
+
+Screenshot sudah menjelaskan 4 fungsi:
+
+Registration
+
+Segmentation
+
+Services
+
+Search
+
+Modul resmi menambahkan:
+
+✔ Matching algorithm
+
+SAP dapat mencocokkan profil kandidat dengan kualifikasi posisi (mirip PD—Personnel Development).
+
+
+HR050_EN_Col31_CO_A4
+
+Contoh: kandidat dengan skill Python otomatis direkomendasikan untuk posisi Data Engineer.
+
+✔ Posting Channel
+
+(E-mail newsletter, search agencies, talent consultant)
+Di screenshot terlihat, tapi modul menegaskan bahwa ini adalah bagian dari “Talent Services”.
+
+⭐ 10. Integration dengan SAP BW/BI (Figure 88)
+
+Screenshot sudah mengatakan reporting,
+Tapi modul menambahkan:
+
+✔ Ad Hoc Query
+
+E-Recruiting mendukung ad hoc query untuk laporan cepat.
+
+
+HR050_EN_Col31_CO_A4
+
+✔ InfoCube
+
+SAP menggunakan InfoCube N dan H untuk data HR.
+
+🔵 BAGIAN 3 — MATERI YANG TIDAK ADA DI SS TAPI PENTING UNTUK MINGGU INI
+
+Modul HR050 menyertakan beberapa topik yang tidak muncul di screenshot tetapi berkaitan langsung dengan Unit 3 & Unit 4.
+
+⭐ 11. Enterprise Structure & Personnel Structure (Unit 2, tapi relevan untuk Unit 3)
+
+Infotype tidak akan berfungsi kalau Enterprise Structure tidak lengkap.
+
+Enterprise Structure terdiri dari:
+
+Client
+
+Company Code
+
+Personnel Area
+
+Personnel Subarea
+
+Personnel Structure terdiri dari:
+
+Employee Group
+
+Employee Subgroup
+
+Payroll Area
+
+Semua ini memengaruhi:
+
+Validity infotype
+
+Payroll integration
+
+Time management
+
+Ini sangat relevan karena:
+
+Hiring Action (Figure 53) tidak bisa dilakukan tanpa menentukan Employee Group & Subgroup.
+
+
+HR050_EN_Col31_CO_A4
+
+⭐ 12. Organizational Structure (Unit 2)
+
+Infotype 0001 (Organizational Assignment) hanya bisa diisi jika struktur organisasi sudah dibuat.
+
+Struktur itu terdiri dari:
+
+Organizational Unit
+
+Position
+
+Job
+
+Cost Center
+
+Screenshot kamu tidak menjelaskan ini, tetapi ini fondasi kenapa Hiring Action bisa mengisi 0001.
+
+⭐ 13. Time Management dan Payroll Hubungannya dengan Infotype
+
+Modul Unit 5 & 6 menjelaskan bahwa:
+
+Infotype 0007 (Work Schedule) berpengaruh pada absensi & penghitungan lembur
+
+Infotype 0008 (Basic Pay) ditarik langsung ke Payroll schema
+
+Infotype 2011 / 2001 / 2002 dipakai untuk absensi & izin
+
+Screenshot kamu menjelaskan 0007 & 0008 tetapi tidak menghubungkannya ke Time/Paryoll.
+
+Ini hubungan penting:
+
+SAP menggunakan infotype bukan hanya untuk menyimpan data tetapi untuk menjalankan perhitungan gaji, BPJS, pajak, waktu kerja, absensi, hingga overtime calculation.
+
+⭐ 14. NWBC & ESS/MSS Integration
+
+Modul juga menjelaskan bahwa banyak proses PA & Recruitment dapat dilakukan via:
+
+ESS (Employee Self-Services)
+
+MSS (Manager Self-Services)
+
+
+HR050_EN_Col31_CO_A4
+
+Contohnya:
+
+update dependents data
+
+melihat kalender tim
+
+update alamat
+
+melihat history gaji
+
+Ini peningkatan proses modern dibanding GUI tradisional.
+

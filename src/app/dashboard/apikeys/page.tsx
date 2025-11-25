@@ -18,6 +18,7 @@ interface ApiKey {
 export default function ApiKeysPage() {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addingKey, setAddingKey] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
@@ -66,6 +67,7 @@ export default function ApiKeysPage() {
       return;
     }
 
+    setAddingKey(true);
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch('/api/customer/genovaai/apikeys', {
@@ -78,7 +80,7 @@ export default function ApiKeysPage() {
       });
       const data = await response.json();
       if (data.success) {
-        alert('API key added successfully');
+        alert('API key added and validated successfully!');
         setFormData({ name: '', apiKey: '' });
         setShowAddForm(false);
         fetchApiKeys();
@@ -88,6 +90,8 @@ export default function ApiKeysPage() {
     } catch (error) {
       console.error('Failed to add API key:', error);
       alert('Failed to add API key');
+    } finally {
+      setAddingKey(false);
     }
   }
 
@@ -163,6 +167,22 @@ export default function ApiKeysPage() {
             <CardTitle>Add New API Key</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {addingKey && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Testing API Key...</p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                      Please wait while we validate your Gemini API key
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Key Name
@@ -190,16 +210,28 @@ export default function ApiKeysPage() {
             <div className="flex gap-2">
               <button
                 onClick={handleAdd}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={addingKey}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
-                Add Key
+                {addingKey ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Testing API Key...</span>
+                  </>
+                ) : (
+                  'Add Key'
+                )}
               </button>
               <button
                 onClick={() => {
                   setShowAddForm(false);
                   setFormData({ name: '', apiKey: '' });
                 }}
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                disabled={addingKey}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Cancel
               </button>

@@ -141,12 +141,12 @@ export async function PATCH(
         );
       }
 
-      // Validate free_pool mode - requires balance
+      // Validate free_pool mode - requires balance only (not credits)
       if (data.requestMode === 'free_pool') {
         const balance = parseFloat(user.balance.toString());
         if (balance <= 0) {
           return NextResponse.json(
-            { success: false, error: 'Free Pool mode requires balance. Please top up first.' },
+            { success: false, error: 'Free Pool mode requires balance. Please top up balance first.' },
             { status: 400 }
           );
         }

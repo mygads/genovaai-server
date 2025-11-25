@@ -29,13 +29,13 @@ export default function AdminConfigPage() {
   async function fetchConfigs() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/admin/genovaai/config', {
+      const response = await fetch('/api/admin/genovaai/system-settings', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
       
       if (data.success) {
-        setConfigs(data.data.configs);
+        setConfigs(data.data);
       }
     } catch (error) {
       console.error('Failed to fetch configs:', error);
@@ -48,8 +48,8 @@ export default function AdminConfigPage() {
     setSaving(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/admin/genovaai/config', {
-        method: 'POST',
+      const response = await fetch('/api/admin/genovaai/system-settings', {
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -57,10 +57,6 @@ export default function AdminConfigPage() {
         body: JSON.stringify({
           key: config.key,
           value: editValue,
-          type: config.type,
-          category: config.category,
-          label: config.label,
-          description: config.description || undefined,
         }),
       });
 
@@ -161,13 +157,27 @@ export default function AdminConfigPage() {
 
                           {editingKey === config.key ? (
                             <div className="flex items-center gap-3">
-                              <input
-                                type={config.type === 'number' ? 'number' : 'text'}
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder={`Enter ${config.type} value`}
-                              />
+                              {config.type === 'boolean' ? (
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={editValue === 'true'}
+                                    onChange={(e) => setEditValue(e.target.checked ? 'true' : 'false')}
+                                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                  />
+                                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                                    {editValue === 'true' ? 'Enabled' : 'Disabled'}
+                                  </span>
+                                </label>
+                              ) : (
+                                <input
+                                  type={config.type === 'number' ? 'number' : 'text'}
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  placeholder={`Enter ${config.type} value`}
+                                />
+                              )}
                               <button
                                 onClick={() => handleSave(config)}
                                 disabled={saving}
@@ -185,11 +195,23 @@ export default function AdminConfigPage() {
                           ) : (
                             <div className="flex items-center justify-between">
                               <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                {formatValue(config.value, config.type)}
-                                {config.key === 'balance_to_credit_rate' && (
-                                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
-                                    (Rp per 1 credit)
+                                {config.type === 'boolean' ? (
+                                  <span className={`px-4 py-2 rounded-lg text-base ${
+                                    config.value === 'true' 
+                                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' 
+                                      : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                                  }`}>
+                                    {config.value === 'true' ? '✓ Enabled' : '✗ Disabled'}
                                   </span>
+                                ) : (
+                                  <>
+                                    {formatValue(config.value, config.type)}
+                                    {config.key === 'balance_to_credit_rate' && (
+                                      <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                                        (Rp per 1 credit)
+                                      </span>
+                                    )}
+                                  </>
                                 )}
                               </div>
                               <button
