@@ -2,18 +2,18 @@ import Link from "next/link";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "GenovaAI - Asisten AI Pintar untuk Belajar, Riset & Memahami Konsep Sulit | Gemini & GPT",
-  description: "GenovaAI: Chrome Extension AI terbaik dengan Gemini 2.0 Pro & GPT-4 untuk menjawab pertanyaan, menjelaskan konsep sulit, riset cepat, dan membantu belajar. Gratis 5 kredit premium! Hanya Rp 500/kredit. Support PDF, custom knowledge base.",
-  keywords: "genovaai, ai assistant indonesia, chrome extension ai, asisten belajar ai, riset dengan ai, pahami konsep sulit, gemini pro indonesia, gpt-4 indonesia, ai untuk mahasiswa, ai research assistant, homework helper, study ai tool",
+  title: "Genova AI - Asisten AI Pintar untuk Belajar, Riset & Memahami Konsep Sulit | Gemini & GPT",
+  description: "Genova AI: Chrome Extension AI terbaik dengan Gemini 2.0 Pro & GPT-4 untuk menjawab pertanyaan, menjelaskan konsep sulit, riset cepat, dan membantu belajar. Gratis 5 kredit premium! Hanya Rp 500/kredit. Support PDF, custom knowledge base.",
+  keywords: "genovaai, genova, kuis ai, extension kuis, ai assistant indonesia, chrome extension ai, asisten belajar ai, riset dengan ai, pahami konsep sulit, gemini pro indonesia, gpt-4 indonesia, ai untuk mahasiswa, ai research assistant, homework helper, study ai tool",
   openGraph: {
-    title: "GenovaAI - Asisten AI Pintar untuk Belajar & Riset",
+    title: "Genova AI - Asisten AI Pintar untuk Belajar & Riset",
     description: "Chrome Extension AI dengan Gemini 2.0 Pro & GPT-4. Gratis 5 kredit premium! Mulai dari Rp 500/kredit. Jawab pertanyaan, pahami konsep sulit, riset cepat.",
     type: "website",
     locale: "id_ID",
   },
   twitter: {
     card: "summary_large_image",
-    title: "GenovaAI - Asisten AI untuk Belajar & Riset",
+    title: "Genova AI - Asisten AI untuk Kuis, Belajar & Riset",
     description: "Chrome Extension AI dengan Gemini & GPT. Gratis 5 kredit premium! Jawab pertanyaan & pahami konsep sulit.",
   },
 };
@@ -29,7 +29,7 @@ export default function Home() {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">G</span>
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">GenovaAI</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">Genova AI</span>
             </div>
             <div className="hidden md:flex items-center gap-6">
               <a 
@@ -92,7 +92,7 @@ export default function Home() {
           <span className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent"> AI Gemini & GPT</span>
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-10">
-          GenovaAI membantu Anda mendapatkan jawaban cepat, memahami konsep yang sulit, melakukan riset, dan belajar lebih efektif. Didukung Gemini 2.0 Pro & GPT-4 dengan knowledge base custom, upload PDF, dan analisis mendalam.
+          Genova AI membantu Anda mendapatkan jawaban cepat, memahami konsep yang sulit, melakukan riset, dan belajar lebih efektif. Didukung Gemini 2.0 Pro & GPT-4 dengan knowledge base custom, upload PDF, dan analisis mendalam.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Link 
@@ -124,7 +124,7 @@ export default function Home() {
             </div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Jawab Pertanyaan Apapun</h3>
             <p className="text-gray-600 dark:text-gray-300">
-              Dari soal kuis sederhana hingga konsep kompleks - GenovaAI bisa menjawab dengan 4 mode: Single (cepat), Short (ringkas), Medium (detail), Long (analisis mendalam).
+              Dari soal kuis sederhana hingga konsep kompleks - Genova AI bisa menjawab dengan 4 mode: Single (cepat), Short (ringkas), Medium (detail), Long (analisis mendalam).
             </p>
           </div>
 
@@ -312,8 +312,8 @@ export default function Home() {
       {/* How to Use Section */}
       <section id="cara-penggunaan" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 bg-gray-50 dark:bg-gray-800/50 rounded-3xl">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Cara Menggunakan GenovaAI</h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300">Panduan lengkap untuk memaksimalkan GenovaAI Extension</p>
+          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Cara Menggunakan Genova AI</h2>
+          <p className="text-lg text-gray-600 dark:text-gray-300">Panduan lengkap untuk memaksimalkan Genova AI Extension</p>
         </div>
         
         <div className="grid md:grid-cols-2 gap-8 mb-12">
@@ -324,7 +324,7 @@ export default function Home() {
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Install Extension</h3>
             </div>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
-              Download GenovaAI Chrome Extension dan install ke browser Chrome Anda. Klik tombol download di bawah dan ikuti petunjuk instalasi.
+              Download Genova AI Chrome Extension dan install ke browser Chrome Anda. Klik tombol download di bawah dan ikuti petunjuk instalasi.
             </p>
             <a 
               href="#download-extension"
@@ -341,7 +341,7 @@ export default function Home() {
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Register & Login</h3>
             </div>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
-              Daftar akun GenovaAI dan dapatkan 5 kredit premium gratis dengan kode voucher <span className="font-bold text-purple-600 dark:text-purple-400">NEWUSERPRAK</span>. Login di extension untuk memulai.
+              Daftar akun Genova AI dan dapatkan 5 kredit premium gratis dengan kode voucher <span className="font-bold text-purple-600 dark:text-purple-400">NEWUSERPRAK</span>. Login di extension untuk memulai.
             </p>
             <Link 
               href="/register"
@@ -358,7 +358,7 @@ export default function Home() {
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Atur Preferences</h3>
             </div>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
-              Klik icon GenovaAI di toolbar Chrome, buka Settings/Preferences untuk mengatur:
+              Klik icon Genova AI di toolbar Chrome, buka Settings/Preferences untuk mengatur:
             </p>
             <ul className="space-y-2 text-gray-600 dark:text-gray-300">
               <li className="flex items-start gap-2">
@@ -439,7 +439,7 @@ export default function Home() {
       {/* Extension Download Section */}
       <section id="download-extension" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Download GenovaAI Extension</h2>
+          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Download Genova AI Extension</h2>
           <p className="text-lg text-gray-600 dark:text-gray-300">Pasang extension Chrome dalam 3 langkah mudah</p>
         </div>
 
@@ -471,7 +471,7 @@ export default function Home() {
             <ol className="space-y-2 text-gray-700 dark:text-gray-300">
               <li><strong>1.</strong> Download & extract file di atas</li>
               <li><strong>2.</strong> Buka Chrome → <code className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm">chrome://extensions</code> → Aktifkan <strong>Developer mode</strong></li>
-              <li><strong>3.</strong> Klik <strong>"Load unpacked"</strong> → Pilih folder <code className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm">dist</code> (dari hasil extract) → Selesai! 🎉</li>
+              <li><strong>3.</strong> Klik <strong>&ldquo;Load unpacked&rdquo;</strong> → Pilih folder <code className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm">dist</code> (dari hasil extract) → Selesai! 🎉</li>
             </ol>
           </div>
 
@@ -525,7 +525,7 @@ export default function Home() {
                 <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Aktifkan Developer Mode</h4>
                 <p className="text-gray-600 dark:text-gray-300">
                   Di halaman Extensions, aktifkan toggle <strong>Developer mode</strong> di pojok kanan atas. 
-                  Setelah aktif, akan muncul tombol <strong>"Load unpacked"</strong>.
+                  Setelah aktif, akan muncul tombol <strong>&ldquo;Load unpacked&rdquo;</strong>.
                 </p>
               </div>
             </div>
@@ -548,7 +548,7 @@ export default function Home() {
                   </p>
                 </div>
                 <p className="text-gray-600 dark:text-gray-300">
-                  ✅ Extension GenovaAI berhasil terpasang! Icon <strong>G</strong> akan muncul di toolbar Chrome.
+                  ✅ Extension Genova AI berhasil terpasang! Icon <strong>G</strong> akan muncul di toolbar Chrome.
                 </p>
               </div>
             </div>
@@ -561,7 +561,7 @@ export default function Home() {
               <div>
                 <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Login & Mulai Pakai</h4>
                 <p className="text-gray-600 dark:text-gray-300 mb-3">
-                  Klik icon GenovaAI di toolbar, login dengan akun Anda, dan mulai bertanya! 
+                  Klik icon Genova AI di toolbar, login dengan akun Anda, dan mulai bertanya! 
                 </p>
                 <p className="text-green-600 dark:text-green-400 font-bold">
                   🎁 Jangan lupa gunakan kode voucher <code className="bg-green-100 dark:bg-green-900 px-2 py-1 rounded">NEWUSERPRAK</code> untuk 5 kredit premium gratis!
@@ -600,9 +600,9 @@ export default function Home() {
               <span className="text-3xl">⚙️</span> Cara Membuka Settings/Preferences
             </h3>
             <div className="space-y-3 text-gray-600 dark:text-gray-300">
-              <p><strong>Method 1:</strong> Klik icon GenovaAI di toolbar Chrome → Klik tombol <strong>"Settings"</strong> atau <strong>"⚙️"</strong></p>
-              <p><strong>Method 2:</strong> Klik kanan icon GenovaAI → Pilih <strong>"Options"</strong></p>
-              <p><strong>Method 3:</strong> Buka <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">chrome://extensions</code> → Cari GenovaAI → Klik <strong>"Details"</strong> → Klik <strong>"Extension options"</strong></p>
+              <p><strong>Method 1:</strong> Klik icon Genova AI di toolbar Chrome → Klik tombol <strong>&ldquo;Settings&rdquo;</strong> atau <strong>&ldquo;⚙️&rdquo;</strong></p>
+              <p><strong>Method 2:</strong> Klik kanan icon Genova AI → Pilih <strong>&ldquo;Options&rdquo;</strong></p>
+              <p><strong>Method 3:</strong> Buka <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">chrome://extensions</code> → Cari Genova AI → Klik <strong>&ldquo;Details&rdquo;</strong> → Klik <strong>&ldquo;Extension options&rdquo;</strong></p>
             </div>
           </div>
 
@@ -611,7 +611,7 @@ export default function Home() {
             {/* Request Mode */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
               <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-3">🔑 Request Mode</h4>
-              <p className="text-gray-600 dark:text-gray-300 mb-3">Pilih cara menggunakan GenovaAI:</p>
+              <p className="text-gray-600 dark:text-gray-300 mb-3">Pilih cara menggunakan Genova AI:</p>
               <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
                 <li className="flex items-start gap-2">
                   <span className="font-bold text-blue-600">Free:</span>
@@ -693,8 +693,8 @@ export default function Home() {
               <span className="text-2xl">🎯</span> Pro Tips untuk Preferences
             </h4>
             <div className="space-y-3 text-gray-700 dark:text-gray-300">
-              <p><strong>💡 Untuk soal pilihan ganda:</strong> Gunakan Answer Length "Single" atau "Short" agar cepat</p>
-              <p><strong>💡 Untuk essay:</strong> Gunakan "Medium" atau "Long" untuk penjelasan detail</p>
+              <p><strong>💡 Untuk soal pilihan ganda:</strong> Gunakan Answer Length &ldquo;Single&rdquo; atau &ldquo;Short&rdquo; agar cepat</p>
+              <p><strong>💡 Untuk essay:</strong> Gunakan &ldquo;Medium&rdquo; atau &ldquo;Long&rdquo; untuk penjelasan detail</p>
               <p><strong>💡 Hemat kredit:</strong> Gunakan Free Pool mode dengan saldo minimal untuk gratis</p>
               <p><strong>💡 Jawaban akurat:</strong> Upload knowledge base (PDF materi kuliah) sebelum bertanya</p>
               <p><strong>💡 Domain spesifik:</strong> Buat custom prompt untuk hukum, kedokteran, teknik, dll</p>
@@ -714,22 +714,22 @@ export default function Home() {
           {/* FAQ 1 */}
           <details className="bg-white dark:bg-gray-800 rounded-2xl shadow-md group">
             <summary className="p-6 cursor-pointer list-none flex items-center justify-between font-semibold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              <span>Apa itu GenovaAI?</span>
+              <span>Apa itu Genova AI?</span>
               <span className="text-2xl group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
-              <p>GenovaAI adalah Chrome Extension AI assistant yang membantu Anda belajar, riset, dan memahami konsep sulit dengan cepat. Didukung model AI terkini seperti Gemini 2.0 Pro dan GPT-4, GenovaAI dapat menjawab pertanyaan, menjelaskan materi kompleks, membantu mengerjakan tugas, dan memberikan insight mendalam berdasarkan dokumen/knowledge base yang Anda upload.</p>
+              <p>Genova AI adalah Chrome Extension AI assistant yang membantu Anda belajar, riset, dan memahami konsep sulit dengan cepat. Didukung model AI terkini seperti Gemini 3.0 Pro dan GPT-5.1, Genova AI dapat menjawab pertanyaan, menjelaskan materi kompleks, membantu mengerjakan tugas, dan memberikan insight mendalam berdasarkan dokumen/knowledge base yang Anda upload.</p>
             </div>
           </details>
 
           {/* FAQ 2 */}
           <details className="bg-white dark:bg-gray-800 rounded-2xl shadow-md group">
             <summary className="p-6 cursor-pointer list-none flex items-center justify-between font-semibold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              <span>Berapa harga GenovaAI?</span>
+              <span>Berapa harga Genova AI?</span>
               <span className="text-2xl group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
-              <p className="mb-3"><strong>GenovaAI tersedia dalam 3 mode:</strong></p>
+              <p className="mb-3"><strong>Genova AI tersedia dalam 3 mode:</strong></p>
               <ul className="space-y-2">
                 <li>• <strong>Mode Gratis (Free):</strong> Gunakan API key Gemini Anda sendiri - unlimited dan gratis!</li>
                 <li>• <strong>Mode Free Pool:</strong> Pakai pool API key gratis (butuh saldo minimal Rp 1 sebagai verifikasi)</li>
@@ -742,11 +742,11 @@ export default function Home() {
           {/* FAQ 3 */}
           <details className="bg-white dark:bg-gray-800 rounded-2xl shadow-md group">
             <summary className="p-6 cursor-pointer list-none flex items-center justify-between font-semibold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              <span>Apa saja yang bisa dilakukan GenovaAI?</span>
+              <span>Apa saja yang bisa dilakukan Genova AI?</span>
               <span className="text-2xl group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
-              <p className="mb-3"><strong>GenovaAI dapat membantu Anda:</strong></p>
+              <p className="mb-3"><strong>Genova AI dapat membantu Anda:</strong></p>
               <ul className="space-y-2">
                 <li>✓ Menjawab soal kuis, ujian, dan tugas (pilihan ganda, essay, isian)</li>
                 <li>✓ Menjelaskan konsep yang sulit dipahami dengan bahasa sederhana</li>
@@ -757,20 +757,20 @@ export default function Home() {
                 <li>✓ Debugging code dan menjelaskan programming concepts</li>
                 <li>✓ Translation dan parafrase teks dengan konteks yang tepat</li>
               </ul>
-              <p className="mt-3">Intinya, apapun yang butuh pemahaman mendalam dan analisis, GenovaAI siap membantu!</p>
+              <p className="mt-3">Intinya, apapun yang butuh pemahaman mendalam dan analisis, Genova AI siap membantu!</p>
             </div>
           </details>
 
           {/* FAQ 4 */}
           <details className="bg-white dark:bg-gray-800 rounded-2xl shadow-md group">
             <summary className="p-6 cursor-pointer list-none flex items-center justify-between font-semibold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              <span>Bagaimana cara menggunakan GenovaAI?</span>
+              <span>Bagaimana cara menggunakan Genova AI?</span>
               <span className="text-2xl group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
               <ol className="space-y-2">
-                <li><strong>1.</strong> Download dan install Chrome Extension GenovaAI</li>
-                <li><strong>2.</strong> Register akun di website GenovaAI (gunakan kode NEWUSERPRAK untuk bonus)</li>
+                <li><strong>1.</strong> Download dan install Chrome Extension Genova AI</li>
+                <li><strong>2.</strong> Register akun di website Genova AI (gunakan kode NEWUSERPRAK untuk bonus)</li>
                 <li><strong>3.</strong> Login di extension dan atur preferences (request mode, answer length, model AI)</li>
                 <li><strong>4.</strong> Upload knowledge base jika perlu (PDF, DOCX materi kuliah/buku)</li>
                 <li><strong>5.</strong> Mulai bertanya lewat bubble chat atau icon extension</li>
@@ -786,7 +786,7 @@ export default function Home() {
               <span className="text-2xl group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
-              <p className="mb-3"><strong>GenovaAI mendukung berbagai model AI terkini:</strong></p>
+              <p className="mb-3"><strong>Genova AI mendukung berbagai model AI terkini:</strong></p>
               <ul className="space-y-2">
                 <li>• <strong>Google Gemini 2.0 Flash:</strong> Cepat dan efisien (Free & Pool mode)</li>
                 <li>• <strong>Google Gemini 2.0 Pro:</strong> Reasoning terbaik, analisis mendalam (Premium)</li>
@@ -825,9 +825,9 @@ export default function Home() {
               <ol className="space-y-2">
                 <li><strong>1.</strong> Kunjungi <a href="https://ai.google.dev" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">Google AI Studio (ai.google.dev)</a></li>
                 <li><strong>2.</strong> Login dengan akun Google Anda</li>
-                <li><strong>3.</strong> Klik "Get API Key" di dashboard</li>
+                <li><strong>3.</strong> Klik &ldquo;Get API Key&rdquo; di dashboard</li>
                 <li><strong>4.</strong> Copy API key yang diberikan</li>
-                <li><strong>5.</strong> Paste ke GenovaAI extension settings → Request Mode: Free → Save</li>
+                <li><strong>5.</strong> Paste ke Genova AI extension settings → Request Mode: Free → Save</li>
               </ol>
               <p className="mt-3 text-green-600 dark:text-green-400">✅ API key Gemini gratis dengan quota yang cukup besar untuk penggunaan harian!</p>
             </div>
@@ -849,18 +849,18 @@ export default function Home() {
                 <li>✓ Knowledge base files tersimpan secure di server</li>
                 <li>✓ Anda bisa hapus chat history kapan saja</li>
               </ul>
-              <p className="mt-3">GenovaAI developed by <strong>PT Generation Infinity Indonesia</strong> dengan standar keamanan enterprise.</p>
+              <p className="mt-3">Genova AI developed by <strong>PT Generation Infinity Indonesia</strong> dengan standar keamanan enterprise.</p>
             </div>
           </details>
 
           {/* FAQ 9 */}
           <details className="bg-white dark:bg-gray-800 rounded-2xl shadow-md group">
             <summary className="p-6 cursor-pointer list-none flex items-center justify-between font-semibold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              <span>Apakah GenovaAI bisa digunakan untuk ujian online?</span>
+              <span>Apakah Genova AI bisa digunakan untuk ujian online?</span>
               <span className="text-2xl group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
-              <p className="mb-3">GenovaAI adalah <strong>alat bantu belajar</strong> yang dirancang untuk:</p>
+              <p className="mb-3">Genova AI adalah <strong>alat bantu belajar</strong> yang dirancang untuk:</p>
               <ul className="space-y-2">
                 <li>✓ Membantu Anda <strong>memahami konsep</strong> sebelum ujian</li>
                 <li>✓ <strong>Latihan soal</strong> dan simulasi ujian</li>
@@ -880,7 +880,7 @@ export default function Home() {
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
               <p className="mb-3"><strong>Top-up Kredit:</strong></p>
               <ul className="space-y-2 mb-4">
-                <li>• Login ke <a href="/dashboard" className="text-blue-600 dark:text-blue-400 hover:underline">Dashboard GenovaAI</a></li>
+                <li>• Login ke <a href="/dashboard" className="text-blue-600 dark:text-blue-400 hover:underline">Dashboard Genova AI</a></li>
                 <li>• Pilih menu "Balance" atau "Buy Credits"</li>
                 <li>• Pilih paket kredit (mulai 10 kredit = Rp 5.000)</li>
                 <li>• Bayar via payment gateway (QRIS, Virtual Account, E-wallet)</li>
@@ -923,7 +923,7 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-3xl p-12 text-center text-white">
           <h2 className="text-4xl font-bold mb-4">Siap Belajar Lebih Cerdas?</h2>
-          <p className="text-xl mb-8 text-purple-100">Bergabunglah dengan ribuan siswa yang sudah menggunakan GenovaAI</p>
+          <p className="text-xl mb-8 text-purple-100">Bergabunglah dengan ribuan siswa yang sudah menggunakan Genova AI</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
               href="/register" 
@@ -946,13 +946,13 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">G</span>
               </div>
-              <span className="text-lg font-bold text-gray-900 dark:text-white">GenovaAI</span>
+              <span className="text-lg font-bold text-gray-900 dark:text-white">Genova AI</span>
             </div>
             <p className="text-gray-600 dark:text-gray-400 text-sm">
-              © 2025 GenovaAI. All rights reserved.
+              © 2025 Genova AI. All rights reserved.
             </p>
           </div>
         </div>

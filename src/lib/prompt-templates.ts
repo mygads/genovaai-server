@@ -8,7 +8,7 @@
  * Follows prompt engineering pattern: Role → Instructions → Constraints → Output Format
  */
 export function buildSystemPrompt(answerMode: 'single' | 'short' | 'medium' | 'long'): string {
-  const role = 'You are GenovaAI, an intelligent quiz and study assistant designed to help students learn effectively.';
+  const role = 'You are Genova AI, an intelligent quiz and study assistant designed to help students learn effectively.';
 
   const baseInstructions = [
     'Answer questions accurately based on the provided knowledge base and context.',

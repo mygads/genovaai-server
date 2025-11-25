@@ -1,4 +1,4 @@
-# robots.txt for GenovaAI - genova.genfity.com
+# robots.txt for Genova AI - genova.genfity.com
 # Generated on November 24, 2025
 
 # Allow all search engines

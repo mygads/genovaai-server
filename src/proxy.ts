@@ -5,7 +5,7 @@ import { verifyAccessToken } from './lib/auth-genovaai';
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // GenovaAI API routes protection
+  // Genova AI API routes protection
   if (pathname.startsWith('/api/gateway') || 
       pathname.startsWith('/api/customer/genovaai')) {
     

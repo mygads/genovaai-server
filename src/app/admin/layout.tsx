@@ -31,7 +31,7 @@ export default async function AdminLayout({ children, params }: AdminLayoutProps
       <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-2xl border-r border-gray-200/50 dark:border-gray-700/50 flex flex-col">
         {/* Logo */}
         <div className="p-6 border-b border-gray-200/50 dark:border-gray-700/50">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">GenovaAI</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white"> AI</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">Admin Dashboard</p>
         </div>
         

@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL('https://genova.genfity.com'),
   title: {
-    default: "GenovaAI - Asisten AI Pintar untuk Belajar, Riset & Memahami Konsep Sulit",
-    template: "%s | GenovaAI"
+    default: "Genova AI - Asisten AI Pintar untuk Kuis, Belajar, Riset & Memahami Konsep Sulit",
+    template: "%s | Genova AI"
   },
   description: "Chrome Extension AI terbaik dengan Gemini 2.0 Pro & GPT-4 untuk menjawab pertanyaan, menjelaskan konsep sulit, riset cepat, dan membantu belajar. Gratis 5 kredit premium! Hanya Rp 500/kredit.",
   keywords: ["genovaai", "ai assistant indonesia", "chrome extension ai", "asisten belajar ai", "riset dengan ai", "pahami konsep sulit", "gemini pro indonesia", "gpt-4 indonesia", "ai research assistant", "homework helper", "study ai tool"],
@@ -38,13 +38,13 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'id_ID',
     url: 'https://genova.genfity.com',
-    title: 'GenovaAI - Asisten AI untuk Belajar & Riset',
+    title: 'Genova AI - Asisten AI untuk Kuis, Belajar & Riset',
     description: 'Chrome Extension AI dengan Gemini 2.0 Pro & GPT-4. Gratis 5 kredit premium! Mulai dari Rp 500/kredit.',
-    siteName: 'GenovaAI',
+    siteName: 'Genova AI',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'GenovaAI - Asisten AI untuk Belajar & Riset',
+    title: 'Genova AI - Asisten AI untuk Kuis, Belajar & Riset',
     description: 'Chrome Extension AI dengan Gemini & GPT. Gratis 5 kredit premium!',
   },
   alternates: {

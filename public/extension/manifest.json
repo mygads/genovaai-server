@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "GenovaAI v2 - Smart Quiz Assistant",
+  "name": "Genova AI v2 - Smart AI for Quiz Assistant",
   "version": "2.1.1",
   "description": "AI-powered quiz assistant with backend integration",
   "icons": {
@@ -37,7 +37,7 @@
     "default_icon": {
       "48": "public/logo.png"
     },
-    "default_title": "GenovaAI Settings"
+    "default_title": "Genova AI Settings"
   },
   "web_accessible_resources": [
     {

@@ -46,7 +46,9 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Registrasi gagal");
+        // Handle error with proper message from backend
+        const errorMessage = data.error || data.message || "Registrasi gagal";
+        throw new Error(errorMessage);
       }
 
       // Auto login setelah register
@@ -87,18 +89,25 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-linear-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full">
         {/* Logo & Title */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-2xl">G</span>
             </div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">GenovaAI</span>
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">Genova AI</span>
           </Link>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Buat Akun Baru</h1>
           <p className="text-gray-600 dark:text-gray-400">Mulai belajar dengan AI sekarang</p>
+          
+          {/* Bonus Banner */}
+          <div className="mt-4 bg-linear-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+            <p className="text-sm font-semibold text-green-700 dark:text-green-400 text-center">
+              🎁 Bonus Registrasi: 10 Kredit + Kode NEWUSERPRAK untuk 5 Kredit Premium!
+            </p>
+          </div>
         </div>
 
         {/* Register Form */}
@@ -171,7 +180,15 @@ export default function RegisterPage() {
             {/* Error Message */}
             {error && (
               <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <p className="text-sm font-semibold text-red-600 dark:text-red-400 mb-1">{error}</p>
+                {(error.includes("already registered") || error.includes("sudah terdaftar")) && (
+                  <p className="text-xs text-red-500 dark:text-red-400 mt-2">
+                    Sudah punya akun?{" "}
+                    <Link href="/login" className="underline font-semibold hover:text-red-700 dark:hover:text-red-300">
+                      Login di sini
+                    </Link>
+                  </p>
+                )}
               </div>
             )}
 
