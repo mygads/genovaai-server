@@ -12,7 +12,6 @@ import {
   Settings,
   LogOut,
   LockKeyhole,
-  User as UserIcon,
   ChevronDown
 } from 'lucide-react';
 
@@ -26,6 +25,7 @@ const menuItems = [
   { href: '/admin/users', icon: Users, label: 'Users' },
   { href: '/admin/vouchers', icon: Ticket, label: 'Vouchers' },
   { href: '/admin/apikeys', icon: Key, label: 'API Keys' },
+  { href: '/admin/usage', icon: BarChart3, label: 'Usage' },
   { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/admin/config', icon: Settings, label: 'Configuration' },
 ];
@@ -114,7 +114,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-2xl border-r border-gray-200/50 dark:border-gray-700/50 flex flex-col">
         {/* Logo */}
         <div className="p-6 border-b border-gray-200/50 dark:border-gray-700/50">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white"> AI</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Genova AI</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">Admin Dashboard</p>
         </div>
         

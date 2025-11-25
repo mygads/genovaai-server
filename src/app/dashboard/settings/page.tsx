@@ -250,7 +250,8 @@ export default function SettingsPage() {
         const data = await response.json();
         console.log('[Update Session] Response:', data);
         if (data.success) {
-          setSessions(sessions.map(s => s.sessionId === editingId ? data.data : s));
+          // Reload sessions to get fresh data
+          await fetchSessions();
           setNewSession({
             sessionName: '',
             requestMode: 'premium',
@@ -296,7 +297,8 @@ export default function SettingsPage() {
         const data = await response.json();
         console.log('[Create Session] Response:', data);
         if (data.success) {
-          setSessions([...sessions, data.data]);
+          // Reload sessions to get fresh data
+          await fetchSessions();
           setNewSession({
             sessionName: '',
             requestMode: 'premium',
@@ -338,7 +340,8 @@ export default function SettingsPage() {
       });
       const data = await response.json();
       if (data.success) {
-        setSessions(sessions.filter(s => s.sessionId !== sessionId));
+        // Reload sessions to get fresh data
+        await fetchSessions();
       } else {
         alert(data.error || 'Failed to delete session');
       }
@@ -349,6 +352,7 @@ export default function SettingsPage() {
   }
 
   function handleEditSession(session: ExtensionSession) {
+    const knowledgeFileIds = (session as ExtensionSession & { knowledgeFileIds?: string[] }).knowledgeFileIds || [];
     setEditingId(session.sessionId);
     setNewSession({
       sessionName: session.sessionName,
@@ -359,8 +363,8 @@ export default function SettingsPage() {
       systemPrompt: (session as ExtensionSession & { systemPrompt?: string }).systemPrompt || 'You are a helpful AI assistant.',
       useCustomPrompt: (session as ExtensionSession & { useCustomPrompt?: boolean }).useCustomPrompt || false,
       customSystemPrompt: (session as ExtensionSession & { customSystemPrompt?: string }).customSystemPrompt || '',
-      knowledgeFileIds: (session as ExtensionSession & { knowledgeFileIds?: string[] }).knowledgeFileIds || [],
-      useKnowledge: false, // Will be determined by whether knowledge is used
+      knowledgeFileIds: knowledgeFileIds,
+      useKnowledge: knowledgeFileIds.length > 0, // Enable if session has knowledge files
     });
     setShowAddForm(true);
   }

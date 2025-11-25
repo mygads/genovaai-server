@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FaKey, FaPlus, FaTrash, FaEye, FaEyeSlash, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaKey, FaPlus, FaTrash, FaEye, FaEyeSlash, FaCheckCircle, FaTimesCircle, FaEdit } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -21,6 +21,7 @@ export default function ApiKeysPage() {
   const [addingKey, setAddingKey] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
+  const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     apiKey: '',
@@ -70,29 +71,59 @@ export default function ApiKeysPage() {
     setAddingKey(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/customer/genovaai/apikeys', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-      const data = await response.json();
-      if (data.success) {
-        alert('API key added and validated successfully!');
-        setFormData({ name: '', apiKey: '' });
-        setShowAddForm(false);
-        fetchApiKeys();
+      
+      if (editingKey) {
+        // Update existing key
+        const response = await fetch(`/api/customer/genovaai/apikeys/${editingKey.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: formData.name }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          alert('API key updated successfully!');
+          setFormData({ name: '', apiKey: '' });
+          setShowAddForm(false);
+          setEditingKey(null);
+          fetchApiKeys();
+        } else {
+          alert(data.error || 'Failed to update API key');
+        }
       } else {
-        alert(data.error || 'Failed to add API key');
+        // Add new key
+        const response = await fetch('/api/customer/genovaai/apikeys', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        });
+        const data = await response.json();
+        if (data.success) {
+          alert('API key added and validated successfully!');
+          setFormData({ name: '', apiKey: '' });
+          setShowAddForm(false);
+          fetchApiKeys();
+        } else {
+          alert(data.error || 'Failed to add API key');
+        }
       }
     } catch (error) {
-      console.error('Failed to add API key:', error);
-      alert('Failed to add API key');
+      console.error('Failed to save API key:', error);
+      alert('Failed to save API key');
     } finally {
       setAddingKey(false);
     }
+  }
+
+  function handleEdit(key: ApiKey) {
+    setEditingKey(key);
+    setFormData({ name: key.name, apiKey: key.apiKey });
+    setShowAddForm(true);
   }
 
   async function handleDelete(id: string) {
@@ -164,7 +195,7 @@ export default function ApiKeysPage() {
       {showAddForm && (
         <Card className="border-border/50 shadow-sm">
           <CardHeader>
-            <CardTitle>Add New API Key</CardTitle>
+            <CardTitle>{editingKey ? 'Edit API Key' : 'Add New API Key'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {addingKey && (
@@ -203,9 +234,15 @@ export default function ApiKeysPage() {
                 type="text"
                 value={formData.apiKey}
                 onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                disabled={!!editingKey}
                 placeholder="AIza..."
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
               />
+              {editingKey && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  API key cannot be changed. Delete and create a new one if needed.
+                </p>
+              )}
             </div>
             <div className="flex gap-2">
               <button
@@ -222,13 +259,14 @@ export default function ApiKeysPage() {
                     <span>Testing API Key...</span>
                   </>
                 ) : (
-                  'Add Key'
+                  editingKey ? 'Update Key' : 'Add Key'
                 )}
               </button>
               <button
                 onClick={() => {
                   setShowAddForm(false);
                   setFormData({ name: '', apiKey: '' });
+                  setEditingKey(null);
                 }}
                 disabled={addingKey}
                 className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -295,12 +333,21 @@ export default function ApiKeysPage() {
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDelete(key.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                  >
-                    <FaTrash className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(key)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title="Edit API key name"
+                    >
+                      <FaEdit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(key.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    >
+                      <FaTrash className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

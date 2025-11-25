@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FaPlus, FaPencilAlt, FaEye } from 'react-icons/fa';
+import { FaPlus, FaPencilAlt, FaEye, FaTrash } from 'react-icons/fa';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -58,6 +58,32 @@ export default function VouchersPage() {
       console.error('Failed to fetch vouchers:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDelete(voucherId: string) {
+    if (!confirm('Are you sure you want to delete this voucher? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`/api/admin/genovaai/vouchers/${voucherId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('Voucher deleted successfully!');
+        fetchVouchers();
+      } else {
+        alert(data.error || 'Failed to delete voucher');
+      }
+    } catch (error) {
+      console.error('Failed to delete voucher:', error);
+      alert('Failed to delete voucher');
     }
   }
 
@@ -193,6 +219,13 @@ export default function VouchersPage() {
                           <FaPencilAlt className="w-4 h-4" />
                           Edit
                         </Link>
+                        <button
+                          onClick={() => handleDelete(voucher.id)}
+                          className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
+                        >
+                          <FaTrash className="w-4 h-4" />
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))

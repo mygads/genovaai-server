@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FaKey, FaPlus, FaEdit, FaTrash, FaCheckCircle, FaExclamationCircle, FaClock } from 'react-icons/fa';
+import { FaKey, FaPlus, FaEdit, FaTrash, FaCheckCircle, FaExclamationCircle, FaClock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -30,6 +30,8 @@ export default function AdminAPIKeysPage() {
   const [apiKeys, setApiKeys] = useState<APIKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingKey, setEditingKey] = useState<APIKey | null>(null);
+  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [newKey, setNewKey] = useState({
     apiKey: '',
     name: '',
@@ -68,33 +70,85 @@ export default function AdminAPIKeysPage() {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/admin/genovaai/apikeys', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          apiKey: newKey.apiKey,
-          name: newKey.name || null,
-          priority: parseInt(newKey.priority),
-          maxRequestsPerDay: parseInt(newKey.maxRequestsPerDay),
-        }),
-      });
+      
+      if (editingKey) {
+        // Update existing key
+        const response = await fetch(`/api/admin/genovaai/apikeys/${editingKey.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: newKey.name || null,
+            priority: parseInt(newKey.priority),
+            maxRequestsPerDay: parseInt(newKey.maxRequestsPerDay),
+          }),
+        });
 
-      const data = await response.json();
-      if (data.success) {
-        alert('API key added successfully!');
-        setShowAddModal(false);
-        setNewKey({ apiKey: '', name: '', priority: '1', maxRequestsPerDay: '1500' });
-        fetchAPIKeys();
+        const data = await response.json();
+        if (data.success) {
+          alert('API key updated successfully!');
+          setShowAddModal(false);
+          setEditingKey(null);
+          setNewKey({ apiKey: '', name: '', priority: '1', maxRequestsPerDay: '1500' });
+          fetchAPIKeys();
+        } else {
+          alert(data.error || 'Failed to update API key');
+        }
       } else {
-        alert(data.error || 'Failed to add API key');
+        // Add new key
+        const response = await fetch('/api/admin/genovaai/apikeys', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            apiKey: newKey.apiKey,
+            name: newKey.name || null,
+            priority: parseInt(newKey.priority),
+            maxRequestsPerDay: parseInt(newKey.maxRequestsPerDay),
+          }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert('API key added successfully!');
+          setShowAddModal(false);
+          setNewKey({ apiKey: '', name: '', priority: '1', maxRequestsPerDay: '1500' });
+          fetchAPIKeys();
+        } else {
+          alert(data.error || 'Failed to add API key');
+        }
       }
     } catch (error) {
-      console.error('Failed to add API key:', error);
-      alert('Failed to add API key');
+      console.error('Failed to save API key:', error);
+      alert('Failed to save API key');
     }
+  }
+
+  function handleEditKey(key: APIKey) {
+    setEditingKey(key);
+    setNewKey({
+      apiKey: key.apiKey,
+      name: key.name || '',
+      priority: key.priority.toString(),
+      maxRequestsPerDay: (key.maxRequestsPerDay || 1500).toString(),
+    });
+    setShowAddModal(true);
+  }
+
+  function toggleKeyVisibility(id: string) {
+    setVisibleKeys((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
   }
 
   async function handleDeleteKey(keyId: string) {
@@ -270,8 +324,21 @@ export default function AdminAPIKeysPage() {
                       <p>
                         <span className="font-medium">Key:</span>{' '}
                         <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">
-                          {key.apiKey.slice(0, 20)}...{key.apiKey.slice(-10)}
+                          {visibleKeys.has(key.id) 
+                            ? key.apiKey 
+                            : `${key.apiKey.slice(0, 12)}...${key.apiKey.slice(-8)}`
+                          }
                         </code>
+                        <button
+                          onClick={() => toggleKeyVisibility(key.id)}
+                          className="ml-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                        >
+                          {visibleKeys.has(key.id) ? (
+                            <FaEyeSlash className="w-4 h-4 inline" />
+                          ) : (
+                            <FaEye className="w-4 h-4 inline" />
+                          )}
+                        </button>
                       </p>
                       {key.user && (
                         <p>
@@ -297,6 +364,14 @@ export default function AdminAPIKeysPage() {
                   </div>
 
                   <div className="flex gap-2 ml-4">
+                    <button
+                      onClick={() => handleEditKey(key)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition-colors"
+                      title="Edit API key"
+                    >
+                      <FaEdit className="w-3 h-3 inline mr-1" />
+                      Edit
+                    </button>
                     <button
                       onClick={() => handleToggleStatus(key.id, key.status)}
                       className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
@@ -331,7 +406,9 @@ export default function AdminAPIKeysPage() {
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Add API Key</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              {editingKey ? 'Edit API Key' : 'Add API Key'}
+            </h2>
             
             <div className="space-y-4">
               <div>
@@ -343,9 +420,15 @@ export default function AdminAPIKeysPage() {
                   required
                   value={newKey.apiKey}
                   onChange={(e) => setNewKey({ ...newKey, apiKey: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  disabled={!!editingKey}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
                   placeholder="AIza..."
                 />
+                {editingKey && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    API key cannot be changed
+                  </p>
+                )}
               </div>
 
               <div>
@@ -390,7 +473,11 @@ export default function AdminAPIKeysPage() {
 
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false);
+                  setEditingKey(null);
+                  setNewKey({ apiKey: '', name: '', priority: '1', maxRequestsPerDay: '1500' });
+                }}
                 className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 Cancel
@@ -399,7 +486,7 @@ export default function AdminAPIKeysPage() {
                 onClick={handleAddKey}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Add Key
+                {editingKey ? 'Update Key' : 'Add Key'}
               </button>
             </div>
           </div>

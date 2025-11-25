@@ -402,9 +402,26 @@ Faktor yang mempengaruhi:
     },
   });
 
+  await prisma.systemConfig.upsert({
+    where: { key: 'topup_enabled' },
+    update: {
+      value: 'true',
+      updatedAt: new Date(),
+    },
+    create: {
+      key: 'topup_enabled',
+      value: 'true',
+      type: 'boolean',
+      category: 'features',
+      label: 'Top-Up Availability',
+      description: 'Enable or disable Top-Up feature. When disabled, users will see "Under Maintenance - Please use Voucher" message.',
+    },
+  });
+
   console.log('✅ System configuration created');
   console.log('   - Exchange Rate: Rp 500 = 1 Credit');
   console.log('   - Premium Mode: Enabled');
+  console.log('   - Top-Up Mode: Enabled');
 }
 
 seedGenovaAI()

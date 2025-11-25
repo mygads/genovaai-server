@@ -14,6 +14,8 @@ export default function TopUpPage() {
   const [loading, setLoading] = useState(false);
   const [voucherApplied, setVoucherApplied] = useState<any>(null);
   const [discount, setDiscount] = useState(0);
+  const [topupEnabled, setTopupEnabled] = useState(true);
+  const [checkingTopup, setCheckingTopup] = useState(true);
 
   const CREDIT_PACKAGES = [
     { credits: 10, popular: false },
@@ -23,8 +25,27 @@ export default function TopUpPage() {
   ];
 
   useEffect(() => {
+    checkTopupEnabled();
     fetchExchangeRate();
   }, []);
+
+  async function checkTopupEnabled() {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/customer/genovaai/system-config', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        const topupConfig = data.data.find((c: any) => c.key === 'topup_enabled');
+        setTopupEnabled(topupConfig?.value === 'true');
+      }
+    } catch (error) {
+      console.error('Failed to check topup status:', error);
+    } finally {
+      setCheckingTopup(false);
+    }
+  }
 
   async function fetchExchangeRate() {
     try {
@@ -138,10 +159,56 @@ export default function TopUpPage() {
     }
   }
 
-  if (!exchangeRate) {
+  if (checkingTopup || !exchangeRate) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-lg text-gray-500 dark:text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show maintenance message when topup is disabled
+  if (!topupEnabled) {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.back()}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          >
+            <FaArrowLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Top-Up Credits</h1>
+          </div>
+        </div>
+        
+        <Card className="border-yellow-500 shadow-lg">
+          <CardContent className="pt-6">
+            <div className="text-center py-8">
+              <div className="mb-6">
+                <div className="w-20 h-20 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto">
+                  <svg className="w-10 h-10 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                Top-Up Under Maintenance
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                The top-up feature is currently under maintenance. Please use voucher codes to add credits to your account.
+              </p>
+              <button
+                onClick={() => router.push('/dashboard/balance')}
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center gap-2 mx-auto"
+              >
+                <FaTicketAlt className="w-4 h-4" />
+                Redeem Voucher Instead
+              </button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
