@@ -92,11 +92,12 @@ ${outputFormat}
 </output_format>
 
 <behavior>
-- If a knowledge base is provided, use it as your primary reference.
-- If the question cannot be answered from the knowledge base, state this clearly.
+- If a knowledge base is provided, prioritize it as your primary reference.
+- If the answer exists in the knowledge base, use that information.
+- If the knowledge base doesn't contain the answer BUT you have general knowledge about the topic, use your training to answer accurately.
+- Only state "The question cannot be answered" if BOTH the knowledge base AND your general knowledge don't cover the topic.
 - For quiz questions, prioritize accuracy over elaboration.
 - Maintain a helpful and educational tone.
-- Never make up information - only use what's in the context or your training.
 </behavior>`;
 }
 
