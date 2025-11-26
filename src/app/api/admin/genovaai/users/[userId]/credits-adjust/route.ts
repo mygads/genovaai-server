@@ -47,9 +47,9 @@ export async function POST(
 
     const { amount, type, reason } = validation.data;
 
-    if (amount <= 0) {
+    if (amount === 0) {
       return NextResponse.json(
-        { success: false, error: 'Amount must be greater than 0' },
+        { success: false, error: 'Amount cannot be zero' },
         { status: 400 }
       );
     }
@@ -76,13 +76,6 @@ export async function POST(
     const currentCredits = targetUser.credits;
     const adjustmentAmount = type === 'add' ? amount : -amount;
     const newCredits = currentCredits + adjustmentAmount;
-
-    if (newCredits < 0) {
-      return NextResponse.json(
-        { success: false, error: 'Insufficient credits for deduction' },
-        { status: 400 }
-      );
-    }
 
     // Create description based on type and reason
     let description: string;
@@ -122,12 +115,38 @@ export async function POST(
       return { updatedUser, transaction };
     });
 
+    // Generate response message template
+    const action = type === 'add' ? 'added to' : 'deducted from';
+    const creditsFormatted = `${Math.abs(amount)} credit${Math.abs(amount) !== 1 ? 's' : ''}`;
+
+    const warningMessage = newCredits < 0 
+      ? ' ⚠️ Warning: User credits are now negative!' 
+      : '';
+
     return NextResponse.json({
       success: true,
-      message: `Credits ${type === 'add' ? 'added' : 'deducted'} successfully`,
+      message: `✅ ${creditsFormatted} successfully ${action} ${targetUser.name || targetUser.email}.${warningMessage}`,
+      template: {
+        summary: `Credits Adjustment - ${type === 'add' ? 'Addition' : 'Deduction'}`,
+        details: [
+          `User: ${targetUser.name || 'N/A'} (${targetUser.email})`,
+          `Previous Credits: ${currentCredits}`,
+          `Adjustment: ${type === 'add' ? '+' : '-'}${Math.abs(amount)}`,
+          `New Credits: ${newCredits}${newCredits < 0 ? ' (NEGATIVE)' : ''}`,
+          `Reason: ${reason}`,
+          `Admin: ${adminUser?.name || adminUser?.email || 'Unknown'}`,
+        ],
+        status: newCredits < 0 ? 'warning' : 'success',
+      },
       data: {
         user: result.updatedUser,
         transaction: result.transaction,
+        adjustment: {
+          previous: currentCredits,
+          amount: adjustmentAmount,
+          new: newCredits,
+          isNegative: newCredits < 0,
+        },
       },
     });
   } catch (error) {

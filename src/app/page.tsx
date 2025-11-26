@@ -3,11 +3,11 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Genova AI - Asisten AI Pintar untuk Belajar, Riset & Memahami Konsep Sulit | Gemini & GPT",
-  description: "Genova AI: Chrome Extension AI terbaik dengan Gemini 3.0 Pro & GPT-5.1 untuk menjawab pertanyaan, menjelaskan konsep sulit, riset cepat, dan membantu belajar. Gratis 5 kredit premium! Hanya Rp 300/kredit. Support PDF, custom knowledge base.",
+  description: "Genova AI: Chrome Extension AI terbaik dengan Gemini 3.0 Pro & GPT-5.1 untuk menjawab pertanyaan, menjelaskan konsep sulit, riset cepat, dan membantu belajar. Gratis 5 kredit premium! Hanya Rp 500/kredit. Support PDF, custom knowledge base.",
   keywords: "genovaai, genova, kuis ai, extension kuis, ai assistant indonesia, chrome extension ai, asisten belajar ai, riset dengan ai, pahami konsep sulit, gemini pro indonesia, gpt-5.1 indonesia, ai untuk mahasiswa, ai research assistant, homework helper, study ai tool",
   openGraph: {
     title: "Genova AI - Asisten AI Pintar untuk Belajar & Riset",
-    description: "Chrome Extension AI dengan Gemini 3.0 Pro & GPT-5.1. Gratis 5 kredit premium! Mulai dari Rp 300/kredit. Jawab pertanyaan, pahami konsep sulit, riset cepat.",
+    description: "Chrome Extension AI dengan Gemini 3.0 Pro & GPT-5.1. Gratis 5 kredit premium! Mulai dari Rp 500/kredit. Jawab pertanyaan, pahami konsep sulit, riset cepat.",
     type: "website",
     locale: "id_ID",
   },
@@ -20,13 +20,13 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-linear-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">
       {/* Navbar */}
       <nav className="border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">G</span>
               </div>
               <span className="text-xl font-bold text-gray-900 dark:text-white">Genova AI</span>
@@ -58,7 +58,7 @@ export default function Home() {
               </Link>
               <Link 
                 href="/register" 
-                className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
+                className="px-6 py-2 bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
               >
                 Register
               </Link>
@@ -73,7 +73,7 @@ export default function Home() {
               </Link>
               <Link 
                 href="/register" 
-                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg text-sm"
+                className="px-4 py-2 bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg text-sm"
               >
                 Register
               </Link>
@@ -230,7 +230,7 @@ export default function Home() {
 
           {/* Pool Plan */}
           <div className="p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border-2 border-blue-500 relative">
-            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-bold rounded-full">
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 px-4 py-1 bg-linear-to-r from-blue-500 to-purple-600 text-white text-sm font-bold rounded-full">
               POPULER
             </div>
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Pool Free</h3>
@@ -262,14 +262,14 @@ export default function Home() {
             </ul>
             <Link 
               href="/register" 
-              className="block w-full py-3 text-center bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all font-semibold shadow-lg"
+              className="block w-full py-3 text-center bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all font-semibold shadow-lg"
             >
               Mulai Sekarang
             </Link>
           </div>
 
           {/* Premium Plan */}
-          <div className="p-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl shadow-xl text-white">
+          <div className="p-8 bg-linear-to-br from-purple-500 to-blue-600 rounded-2xl shadow-xl text-white">
             <h3 className="text-2xl font-bold mb-2">Premium</h3>
             <div className="mb-6">
               <span className="text-4xl font-bold">Rp 500</span>
@@ -414,7 +414,7 @@ export default function Home() {
         </div>
 
         {/* Additional Tips */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-8 border border-blue-200 dark:border-blue-800">
+        <div className="bg-linear-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-8 border border-blue-200 dark:border-blue-800">
           <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <span className="text-2xl">💡</span> Tips Memaksimalkan Genova AI
           </h4>
@@ -447,7 +447,7 @@ export default function Home() {
           <div className="mb-12">
 
             {/* Option 2: ZIP File (Backup) */}
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-3xl p-8 text-center text-white shadow-2xl">
+            <div className="bg-linear-to-r from-blue-500 to-purple-600 rounded-3xl p-8 text-center text-white shadow-2xl">
               <div className="text-5xl mb-4">🗜️</div>
               <h3 className="text-2xl font-bold mb-3">Download ZIP</h3>
               <p className="text-purple-100 mb-6">File ZIP extension siap pakai</p>
@@ -687,7 +687,7 @@ export default function Home() {
           </div>
 
           {/* Pro Tips */}
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-2xl p-8 border border-purple-200 dark:border-purple-800">
+          <div className="bg-linear-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-2xl p-8 border border-purple-200 dark:border-purple-800">
             <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <span className="text-2xl">🎯</span> Pro Tips untuk Preferences
             </h4>
@@ -920,7 +920,7 @@ export default function Home() {
 
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-3xl p-12 text-center text-white">
+        <div className="bg-linear-to-r from-blue-500 to-purple-600 rounded-3xl p-12 text-center text-white">
           <h2 className="text-4xl font-bold mb-4">Siap Belajar Lebih Cerdas?</h2>
           <p className="text-xl mb-8 text-purple-100">Bergabunglah dengan ribuan siswa yang sudah menggunakan Genova AI</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

@@ -47,9 +47,9 @@ export async function POST(
 
     const { amount, type, reason } = validation.data;
 
-    if (amount <= 0) {
+    if (amount === 0) {
       return NextResponse.json(
-        { success: false, error: 'Amount must be greater than 0' },
+        { success: false, error: 'Amount cannot be zero' },
         { status: 400 }
       );
     }
@@ -76,13 +76,6 @@ export async function POST(
     const currentBalance = parseFloat(targetUser.balance.toString());
     const adjustmentAmount = type === 'add' ? amount : -amount;
     const newBalance = currentBalance + adjustmentAmount;
-
-    if (newBalance < 0) {
-      return NextResponse.json(
-        { success: false, error: 'Insufficient balance for deduction' },
-        { status: 400 }
-      );
-    }
 
     // Create description based on type and reason
     let description: string;
@@ -122,12 +115,47 @@ export async function POST(
       return { updatedUser, transaction };
     });
 
+    // Generate response message template
+    const action = type === 'add' ? 'added to' : 'deducted from';
+    const amountFormatted = new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(Math.abs(amount));
+    const balanceFormatted = new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(newBalance);
+
+    const warningMessage = newBalance < 0 
+      ? ' ⚠️ Warning: User balance is now negative!' 
+      : '';
+
     return NextResponse.json({
       success: true,
-      message: `Balance ${type === 'add' ? 'added' : 'deducted'} successfully`,
+      message: `✅ ${amountFormatted} successfully ${action} ${targetUser.name || targetUser.email}'s balance.${warningMessage}`,
+      template: {
+        summary: `Balance Adjustment - ${type === 'add' ? 'Addition' : 'Deduction'}`,
+        details: [
+          `User: ${targetUser.name || 'N/A'} (${targetUser.email})`,
+          `Previous Balance: ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(currentBalance)}`,
+          `Adjustment: ${type === 'add' ? '+' : '-'}${amountFormatted}`,
+          `New Balance: ${balanceFormatted}${newBalance < 0 ? ' (NEGATIVE)' : ''}`,
+          `Reason: ${reason}`,
+          `Admin: ${adminUser?.name || adminUser?.email || 'Unknown'}`,
+        ],
+        status: newBalance < 0 ? 'warning' : 'success',
+      },
       data: {
         user: result.updatedUser,
         transaction: result.transaction,
+        adjustment: {
+          previous: currentBalance,
+          amount: adjustmentAmount,
+          new: newBalance,
+          isNegative: newBalance < 0,
+        },
       },
     });
   } catch (error) {
