@@ -154,7 +154,7 @@ export default function HistoryPage() {
               <FaHistory className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No history yet</h3>
               <p className="text-gray-500 dark:text-gray-400">
-                Start using GenovaAI to see your conversation history here
+                Start using Genova AI to see your conversation history here
               </p>
             </div>
           </CardContent>

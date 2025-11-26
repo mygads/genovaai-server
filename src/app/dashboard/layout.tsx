@@ -137,7 +137,7 @@ export default function DashboardLayout({
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">GenovaAI</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Genova AI</h1>
             <button
               onClick={() => setSidebarOpen(false)}
               className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"

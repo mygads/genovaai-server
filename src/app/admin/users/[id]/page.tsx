@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { FaArrowLeft, FaCreditCard, FaPlus } from 'react-icons/fa';
+import { FaArrowLeft, FaCreditCard, FaPlus, FaEdit } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -128,6 +128,10 @@ export default function UserDetailPage() {
   async function handleToggleStatus() {
     if (!user) return;
     
+    if (!confirm(`Are you sure you want to ${user.isActive ? 'deactivate' : 'activate'} this user?\n\nDeactivated users cannot login or use AI features.`)) {
+      return;
+    }
+
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
@@ -145,10 +149,51 @@ export default function UserDetailPage() {
       );
       const data = await response.json();
       if (data.success) {
+        alert(`User ${!user.isActive ? 'activated' : 'deactivated'} successfully`);
         fetchUser();
+      } else {
+        alert(data.error || 'Failed to update user status');
       }
     } catch (error) {
       console.error('Failed to update user:', error);
+      alert('Failed to update user status');
+    }
+  }
+
+  async function handleEditEmail() {
+    if (!user) return;
+
+    const newEmail = prompt('Enter new email address:', user.email);
+    if (!newEmail || newEmail === user.email) return;
+
+    if (!newEmail.includes('@') || !newEmail.includes('.')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(
+        `/api/admin/genovaai/users/${params.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: newEmail }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        alert('Email updated successfully');
+        fetchUser();
+      } else {
+        alert(data.error || 'Failed to update email');
+      }
+    } catch (error) {
+      console.error('Failed to update email:', error);
+      alert('Failed to update email');
     }
   }
 
@@ -295,7 +340,16 @@ export default function UserDetailPage() {
               <p className="text-base font-medium text-gray-900 dark:text-white">{user.name || 'Not set'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
+                <button
+                  onClick={handleEditEmail}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  <FaEdit className="w-3 h-3" />
+                  Edit
+                </button>
+              </div>
               <p className="text-base font-medium text-gray-900 dark:text-white">{user.email}</p>
             </div>
             <div>

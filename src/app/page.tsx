@@ -85,14 +85,13 @@ export default function Home() {
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
         <div className="inline-block px-4 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-700 dark:text-blue-300 text-sm font-medium mb-6">
-          🎓 AI-Powered Study Assistant
+          🎓 AI Chrome Extension for Study Assistant
         </div>
         <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
-          Belajar, Riset & Pahami Konsep Sulit dengan
-          <span className="bg-lineaer-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent"> AI Gemini & GPT</span>
+          Belajar, Riset & Pahami Konsep Sulit dari Kuis & Soal dengan AI
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-10">
-          Genova AI membantu Anda mendapatkan jawaban cepat, memahami konsep yang sulit, melakukan riset, dan belajar lebih efektif. Didukung Gemini 3.0 Pro & GPT-5.1 dengan knowledge base custom, upload PDF, dan analisis mendalam.
+          Genova AI membantu Anda mendapatkan jawaban cepat, memahami konsep yang sulit, melakukan riset, dan belajar lebih efektif dibuat untuk menjawab kuis dan soal dengan lebih mudah dengan extension chrome, simple dan mudah digunakan. Didukung Gemini 3.0 Pro & GPT-5.1 dengan knowledge base custom, upload PDF, dan analisis mendalam.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Link 
@@ -417,7 +416,7 @@ export default function Home() {
         {/* Additional Tips */}
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-8 border border-blue-200 dark:border-blue-800">
           <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <span className="text-2xl">💡</span> Tips Memaksimalkan GenovaAI
+            <span className="text-2xl">💡</span> Tips Memaksimalkan Genova AI
           </h4>
           <div className="grid md:grid-cols-2 gap-4 text-gray-700 dark:text-gray-300">
             <div>
@@ -579,7 +578,7 @@ export default function Home() {
               <li><strong>Extension tidak muncul:</strong> Pastikan Developer Mode sudah ON dan Anda memilih folder <strong>dist</strong> (bukan folder induk)</li>
               <li><strong>Error &ldquo;manifest.json not found&rdquo;:</strong> Anda salah pilih folder. Pilih folder <strong>dist</strong> yang berisi file manifest.json</li>
               <li><strong>Error saat load:</strong> Coba extract ulang file ZIP atau download ulang extension dari GitHub</li>
-              <li><strong>Tidak bisa login:</strong> Pastikan sudah register di website GenovaAI terlebih dahulu</li>
+              <li><strong>Tidak bisa login:</strong> Pastikan sudah register di website Genova AI terlebih dahulu</li>
               <li><strong>Butuh bantuan?</strong> Hubungi support@genfity.com atau lihat dokumentasi lengkap di dashboard</li>
             </ul>
           </div>
@@ -707,7 +706,7 @@ export default function Home() {
       <section id="faq" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Pertanyaan yang Sering Diajukan (FAQ)</h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300">Temukan jawaban untuk pertanyaan umum tentang GenovaAI</p>
+          <p className="text-lg text-gray-600 dark:text-gray-300">Temukan jawaban untuk pertanyaan umum tentang Genova AI</p>
         </div>
 
         <div className="max-w-4xl mx-auto space-y-4">
@@ -867,7 +866,7 @@ export default function Home() {
                 <li>✓ <strong>Review materi</strong> dan pemahaman mendalam</li>
                 <li>✓ <strong>Riset dan belajar</strong> topik yang sulit</li>
               </ul>
-              <p className="mt-3 text-amber-600 dark:text-amber-400 font-semibold">⚠️ Kami tidak mendukung penggunaan untuk kecurangan dalam ujian. Gunakan GenovaAI secara etis untuk belajar dan memahami materi dengan lebih baik.</p>
+              <p className="mt-3 text-amber-600 dark:text-amber-400 font-semibold">⚠️ Kami tidak mendukung penggunaan untuk kecurangan dalam ujian. Gunakan Genova AI secara etis untuk belajar dan memahami materi dengan lebih baik.</p>
             </div>
           </details>
 

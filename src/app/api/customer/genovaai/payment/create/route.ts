@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
 import { PaymentGatewayFactory } from '@/lib/payment-gateway/factory';
+import { logErrorFromRequest, ErrorTypes, ErrorCodes } from '@/lib/error-logger';
 import { z } from 'zod';
 import { Prisma } from '@/generated/prisma';
 
@@ -223,6 +224,27 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error creating payment:', error);
+    
+    // Log payment creation errors
+    const err = error as Error;
+    const tokenHeader = request.headers.get('authorization');
+    let userId: string | undefined;
+    
+    if (tokenHeader?.startsWith('Bearer ')) {
+      const token = tokenHeader.substring(7);
+      const payload = await verifyAccessToken(token);
+      userId = payload?.userId;
+    }
+    
+    await logErrorFromRequest(
+      request,
+      ErrorTypes.PAYMENT_ERROR,
+      ErrorCodes.PAYMENT_FAILED,
+      err.message || 'Failed to create payment',
+      err,
+      userId
+    );
+    
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   } finally {
     await prisma.$disconnect();

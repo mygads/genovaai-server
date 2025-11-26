@@ -119,7 +119,7 @@ export default function CustomerDashboardPage() {
             Welcome back, {user?.name || 'User'}! 👋
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Here's your GenovaAI account overview
+            Here is your Genova AI account overview
           </p>
         </div>
         <Badge variant={stats?.subscriptionStatus === 'active' ? 'default' : 'secondary'} className="text-sm px-4 py-2">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FaSearch, FaEye, FaUser } from 'react-icons/fa';
+import { FaSearch, FaEye, FaUser, FaEdit, FaBan, FaCheck } from 'react-icons/fa';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -61,6 +61,66 @@ export default function UsersPage() {
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     fetchUsers();
+  }
+
+  async function handleToggleStatus(userId: string, currentStatus: boolean) {
+    if (!confirm(`Are you sure you want to ${currentStatus ? 'deactivate' : 'activate'} this user?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`/api/admin/genovaai/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isActive: !currentStatus }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert(`User ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+        fetchUsers();
+      } else {
+        alert(data.error || 'Failed to update user status');
+      }
+    } catch (error) {
+      console.error('Failed to toggle status:', error);
+      alert('Failed to update user status');
+    }
+  }
+
+  async function handleEditEmail(userId: string, currentEmail: string) {
+    const newEmail = prompt('Enter new email address:', currentEmail);
+    if (!newEmail || newEmail === currentEmail) return;
+
+    if (!newEmail.includes('@') || !newEmail.includes('.')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`/api/admin/genovaai/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: newEmail }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('Email updated successfully');
+        fetchUsers();
+      } else {
+        alert(data.error || 'Failed to update email');
+      }
+    } catch (error) {
+      console.error('Failed to update email:', error);
+      alert('Failed to update email');
+    }
   }
 
   return (
@@ -178,14 +238,34 @@ export default function UsersPage() {
                           {user.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <Link
-                          href={`/admin/users/${user.id}`}
-                          className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50"
-                        >
-                          <FaEye className="w-4 h-4" />
-                          View
-                        </Link>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/admin/users/${user.id}`}
+                            className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                          >
+                            <FaEye className="w-4 h-4" />
+                            View
+                          </Link>
+                          <button
+                            onClick={() => handleEditEmail(user.id, user.email)}
+                            className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded hover:bg-yellow-200 dark:hover:bg-yellow-900/50"
+                          >
+                            <FaEdit className="w-4 h-4" />
+                            Email
+                          </button>
+                          <button
+                            onClick={() => handleToggleStatus(user.id, user.isActive)}
+                            className={`inline-flex items-center gap-1 px-3 py-1 text-sm rounded ${
+                              user.isActive
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50'
+                                : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
+                            }`}
+                          >
+                            {user.isActive ? <FaBan className="w-4 h-4" /> : <FaCheck className="w-4 h-4" />}
+                            {user.isActive ? 'Disable' : 'Enable'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

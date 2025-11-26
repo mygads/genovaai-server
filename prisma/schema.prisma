@@ -54,6 +54,7 @@ model User {
   userSessions           UserSession[]
   payments               Payment[]
   voucherUsages          VoucherUsage[]
+  errorLogs              ErrorLog[]
   
   @@index([email])
   @@index([role])
@@ -434,4 +435,45 @@ model SystemConfig {
   
   @@index([category])
   @@index([key])
+}
+
+// ============================================
+// ERROR LOG MODEL
+// ============================================
+
+model ErrorLog {
+  id            String    @id @default(cuid())
+  userId        String?
+  errorType     String    // 'api_error', 'gateway_error', 'payment_error', 'validation_error', etc
+  errorCode     String?   // Error code for grouping
+  errorMessage  String    @db.Text
+  stackTrace    String?   @db.Text
+  requestPath   String?
+  requestMethod String?
+  requestBody   String?   @db.Text
+  userAgent     String?
+  ipAddress     String?
+  
+  // Status tracking
+  isNew         Boolean   @default(true)
+  isViewed      Boolean   @default(false)
+  isHandled     Boolean   @default(false)
+  viewedAt      DateTime?
+  viewedBy      String?   // Admin user ID who viewed
+  handledAt     DateTime?
+  handledBy     String?   // Admin user ID who handled
+  handlingNote  String?   @db.Text
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([errorType])
+  @@index([errorCode])
+  @@index([isNew])
+  @@index([isViewed])
+  @@index([isHandled])
+  @@index([createdAt])
 }

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const updateUserSchema = z.object({
+  email: z.string().email().optional(),
   isActive: z.boolean().optional(),
   subscriptionStatus: z.enum(['free', 'active', 'expired']).optional(),
   subscriptionExpiry: z.string().optional(),
@@ -103,13 +104,63 @@ export async function PATCH(
       );
     }
 
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, isActive: true },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if at least one field is provided
+    if (!validation.data.email && validation.data.isActive === undefined && 
+        !validation.data.subscriptionStatus && !validation.data.subscriptionExpiry) {
+      return NextResponse.json(
+        { success: false, error: 'At least one field must be provided' },
+        { status: 400 }
+      );
+    }
+
+    // If email is being changed, check if it's already in use
+    if (validation.data.email && validation.data.email !== existingUser.email) {
+      const emailExists = await prisma.user.findUnique({
+        where: { email: validation.data.email },
+      });
+
+      if (emailExists) {
+        return NextResponse.json(
+          { success: false, error: 'Email already in use by another user' },
+          { status: 400 }
+        );
+      }
+
+      console.log(`✏️ Admin changed user ${userId} email from ${existingUser.email} to ${validation.data.email}`);
+    }
+
+    // If isActive is being changed, log the action
+    if (validation.data.isActive !== undefined && validation.data.isActive !== existingUser.isActive) {
+      const action = validation.data.isActive ? 'activated' : 'deactivated';
+      console.log(`${validation.data.isActive ? '✅' : '🚫'} Admin ${action} user ${userId} (${existingUser.email})`);
+    }
+
     interface UpdateData {
+      email?: string;
       isActive?: boolean;
       subscriptionStatus?: string;
       subscriptionExpiry?: Date;
+      updatedAt: Date;
     }
 
-    const updateData: UpdateData = {};
+    const updateData: UpdateData = {
+      updatedAt: new Date(),
+    };
+    
+    if (validation.data.email) updateData.email = validation.data.email;
     if (validation.data.isActive !== undefined) updateData.isActive = validation.data.isActive;
     if (validation.data.subscriptionStatus) updateData.subscriptionStatus = validation.data.subscriptionStatus;
     if (validation.data.subscriptionExpiry) updateData.subscriptionExpiry = new Date(validation.data.subscriptionExpiry);
@@ -121,8 +172,13 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
+      message: 'User updated successfully',
       data: {
-        ...user,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        isActive: user.isActive,
+        credits: user.credits,
         balance: user.balance.toString(),
       },
     });

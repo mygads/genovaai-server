@@ -1,5 +1,5 @@
 /**
- * Dynamic Prompt Builder for GenovaAI
+ * Dynamic Prompt Builder for Genova AI
  * Generates structured system prompts following prompt engineering best practices
  */
 

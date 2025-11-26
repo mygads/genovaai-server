@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 import { LLMGatewayService } from '@/services/llm-gateway-service';
+import { logErrorFromRequest, ErrorTypes, ErrorCodes } from '@/lib/error-logger';
 import { z } from 'zod';
 
 const askSchema = z.object({
@@ -37,6 +38,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if user is active
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { isActive: true, email: true },
+    });
+
+    if (!user || !user.isActive) {
+      return NextResponse.json(
+        { success: false, error: 'Account is inactive. Please contact support.' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const validation = askSchema.safeParse(body);
     if (!validation.success) {
@@ -60,6 +74,14 @@ export async function POST(request: NextRequest) {
       });
       
       if (!activeSession) {
+        await logErrorFromRequest(
+          request,
+          ErrorTypes.GATEWAY_ERROR,
+          ErrorCodes.NO_ACTIVE_SESSION,
+          'No active session found for user',
+          undefined,
+          payload.userId
+        );
         return NextResponse.json(
           { success: false, error: 'No active session found. Please create a session at /dashboard/settings' },
           { status: 400 }
@@ -79,6 +101,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.success) {
+      // Log gateway errors
+      await logErrorFromRequest(
+        request,
+        ErrorTypes.GATEWAY_ERROR,
+        response.error?.includes('credit') ? ErrorCodes.INSUFFICIENT_CREDITS : 
+        response.error?.includes('balance') ? ErrorCodes.INSUFFICIENT_BALANCE :
+        response.error?.includes('API key') ? ErrorCodes.NO_API_KEY : undefined,
+        response.error || 'Gateway processing failed',
+        undefined,
+        payload.userId
+      );
       return NextResponse.json(
         { success: false, error: response.error },
         { status: 400 }
@@ -96,7 +129,18 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Gateway error:', error);
+    console.error('Gateway ask error:', error);
+    
+    // Log unexpected errors
+    const err = error as Error;
+    await logErrorFromRequest(
+      request,
+      ErrorTypes.GATEWAY_ERROR,
+      'GATEWAY_INTERNAL_ERROR',
+      err.message || 'Internal server error in gateway',
+      err
+    );
+    
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

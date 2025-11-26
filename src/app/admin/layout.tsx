@@ -12,7 +12,8 @@ import {
   Settings,
   LogOut,
   LockKeyhole,
-  ChevronDown
+  ChevronDown,
+  AlertTriangle
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -27,6 +28,7 @@ const menuItems = [
   { href: '/admin/apikeys', icon: Key, label: 'API Keys' },
   { href: '/admin/usage', icon: BarChart3, label: 'Usage' },
   { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
+  { href: '/admin/error-logs', icon: AlertTriangle, label: 'Error Logs' },
   { href: '/admin/config', icon: Settings, label: 'Configuration' },
 ];
 
