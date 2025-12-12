@@ -26,21 +26,66 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get form data
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    const sessionId = formData.get('sessionId') as string | null;
-
-    if (!file) {
+    // Check content type
+    const contentType = request.headers.get('content-type');
+    if (!contentType || !contentType.includes('multipart/form-data')) {
       return NextResponse.json(
-        { success: false, error: 'No file provided' },
+        { success: false, error: 'Content-Type must be multipart/form-data' },
         { status: 400 }
       );
     }
 
-    // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    let formData: FormData;
+    let file: File;
+    let sessionId: string | null;
+
+    try {
+      // Get form data
+      formData = await request.formData();
+      file = formData.get('file') as File;
+      sessionId = formData.get('sessionId') as string | null;
+    } catch (formError) {
+      console.error('FormData parsing error:', formError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to parse form data' },
+        { status: 400 }
+      );
+    }
+
+    if (!file || !(file instanceof File)) {
+      return NextResponse.json(
+        { success: false, error: 'No valid file provided' },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size before processing
+    if (file.size === 0) {
+      return NextResponse.json(
+        { success: false, error: 'File is empty' },
+        { status: 400 }
+      );
+    }
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB
+      return NextResponse.json(
+        { success: false, error: 'File size exceeds 10MB limit' },
+        { status: 400 }
+      );
+    }
+
+    let buffer: Buffer;
+    try {
+      // Convert file to buffer
+      const arrayBuffer = await file.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+    } catch (bufferError) {
+      console.error('Buffer conversion error:', bufferError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to process file' },
+        { status: 400 }
+      );
+    }
 
     // Upload file
     const result = await FileUploadService.uploadFile(
