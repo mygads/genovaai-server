@@ -4,8 +4,10 @@ import path from 'path';
 import crypto from 'crypto';
 import mammoth from 'mammoth';
 
-// Local storage directory (relative to project root)
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'knowledge-files');
+// Local storage directory (use /tmp on Heroku, uploads locally)
+const UPLOAD_DIR = process.env.NODE_ENV === 'production' 
+  ? path.join('/tmp', 'knowledge-files')
+  : path.join(process.cwd(), 'uploads', 'knowledge-files');
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_EXTENSIONS = ['.pdf', '.txt', '.docx'];
 
