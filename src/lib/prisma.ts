@@ -5,24 +5,27 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-export const prisma = global.prisma || new PrismaClient({
+const prismaClient = global.prisma || new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
 });
 
+export const prisma = prismaClient;
+export default prismaClient;
+
 // Ensure connection on first use
 if (!global.prisma) {
-  prisma.$connect().catch((err) => {
+  prismaClient.$connect().catch((err) => {
     console.error('Failed to connect to database:', err);
   });
 }
 
 if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma;
+  global.prisma = prismaClient;
 }
 
 // Graceful shutdown
 if (process.env.NODE_ENV === 'production') {
   process.on('beforeExit', async () => {
-    await prisma.$disconnect();
+    await prismaClient.$disconnect();
   });
 }
