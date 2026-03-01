@@ -20,7 +20,11 @@ COPY prisma ./prisma
 RUN npm ci
 
 COPY . .
-RUN npm run build
+
+# Dummy DATABASE_URL for prisma generate (schema validation only, no real DB needed)
+# prisma migrate deploy is skipped here - it runs at deploy time via CI/CD or deploy script
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+RUN npx prisma generate && npx next build
 
 # Production stage
 FROM node:20-alpine AS production
