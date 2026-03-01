@@ -1,0 +1,291 @@
+# ===================================================================================
+# GENOVAAI SERVER - CI/CD PIPELINE
+# ===================================================================================
+#
+# Build and deploy using docker compose
+# Config deployment ada di docker-compose.yml (single source of truth)
+#
+# Required Secrets:
+#   - GHCR_TOKEN: GitHub Container Registry token
+#   - VPS_HOST, VPS_USER, VPS_SSH_KEY: SSH access
+#   - ENV_FILE: Production .env content (auto-updates .env on server)
+#
+# ===================================================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_only:
+        description: 'Skip build, deploy existing image'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/genovaai-server
+
+jobs:
+  # ===================================================================================
+  # BUILD JOB
+  # ===================================================================================
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.deploy_only != 'true' }}
+    permissions:
+      contents: read
+      packages: write
+    
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      version: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=production
+
+      - name: Generate build summary
+        run: |
+          echo "## 🐳 Docker Image Built" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:** \`${{ steps.meta.outputs.tags }}\`" >> $GITHUB_STEP_SUMMARY
+
+  # ===================================================================================
+  # DEPLOY JOB
+  # ===================================================================================
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: |
+      always() && 
+      (needs.build.result == 'success' || github.event.inputs.deploy_only == 'true') &&
+      github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Log secrets usage
+        run: |
+          echo "📋 Secrets used in this workflow:"
+          echo "  - VPS_HOST: ${{ secrets.VPS_HOST && '✅ Set' || '❌ Not set' }}"
+          echo "  - VPS_USER: ${{ secrets.VPS_USER && '✅ Set' || '❌ Not set' }}"
+          echo "  - VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY && '✅ Set' || '❌ Not set' }}"
+          echo "  - GHCR_TOKEN: ${{ secrets.GHCR_TOKEN && '✅ Set' || '❌ Not set' }}"
+          echo "  - ENV_FILE: ${{ secrets.ENV_FILE && '✅ Set' || '❌ Not set' }}"
+
+      - name: Update ENV file on server
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          if [ -n "$ENV_FILE" ]; then
+            echo "📝 Updating .env file on server..."
+            echo "$ENV_FILE" | ssh $VPS_USER@$VPS_HOST "cat > ~/genfity/genovaai-server/.env"
+            echo "✅ ENV file updated!"
+          else
+            echo "⏭️ ENV_FILE secret not set, skipping .env update"
+          fi
+
+      - name: Deploy with Docker Compose
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          echo "🚀 Deploying with docker compose..."
+          
+          ssh $VPS_USER@$VPS_HOST << ENDSSH
+            cd ~/genfity/genovaai-server
+            
+            # Force pull latest changes (override local, no conflicts)
+            git remote set-url origin https://x-access-token:${GHCR_TOKEN}@github.com/${{ github.repository }}.git
+            git fetch origin main
+            git reset --hard origin/main
+            git remote set-url origin https://github.com/${{ github.repository }}.git
+            
+            # Login to GHCR
+            echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u mygads --password-stdin
+            
+            # Set image and deploy using docker compose
+            export IMAGE=ghcr.io/mygads/genovaai-server:latest
+            
+            # Pull and recreate
+            sudo -E docker compose pull
+            sudo -E docker compose up -d --force-recreate
+            
+            # Cleanup old images
+            echo "🧹 Cleaning up..."
+            sudo docker image prune -af --filter "until=24h" 2>/dev/null || true
+            
+            echo "✅ Deployment complete!"
+          ENDSSH
+
+      - name: Run Database Migration
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          echo "🗃️ Running database migration..."
+          ssh $VPS_USER@$VPS_HOST << 'ENDSSH'
+            # Wait for container to be ready
+            sleep 15
+            
+            # Check if container is running
+            if ! sudo docker ps | grep -q genovaai-server; then
+              echo "❌ Container not running!"
+              exit 1
+            fi
+            
+            # Get DATABASE_URL from .env
+            DATABASE_URL=$(grep "^DATABASE_URL=" ~/genfity/genovaai-server/.env | cut -d'=' -f2-)
+            
+            if [ -z "$DATABASE_URL" ]; then
+              echo "❌ DATABASE_URL not found in .env!"
+              exit 1
+            fi
+            
+            # Get prisma folder path from running container
+            PRISMA_PATH=$(sudo docker inspect genovaai-server --format='{{.GraphDriver.Data.MergedDir}}')/app/prisma
+            
+            # Run migration using temporary container with Prisma CLI
+            echo "📦 Running Prisma migrations..."
+            sudo docker run --rm \
+              --network genfity-network \
+              --add-host=host.docker.internal:host-gateway \
+              -e DATABASE_URL="$DATABASE_URL" \
+              -v "$PRISMA_PATH":/app/prisma:ro \
+              -w /app \
+              node:20-alpine sh -c "
+                npm install prisma@latest --silent 2>/dev/null
+                
+                # Try migrate deploy first (for existing migrations)
+                echo 'Attempting prisma migrate deploy...'
+                npx prisma migrate deploy 2>&1 && exit 0
+                
+                # If failed, check if we need initial db push
+                echo 'migrate deploy returned non-zero, checking migration state...'
+                npx prisma migrate status 2>&1 || {
+                  echo 'No migrations applied yet, running db push for initial schema...'
+                  npx prisma db push 2>&1
+                }
+              " || echo "⚠️ Migration completed with warnings"
+            
+            echo "✅ Database migration complete!"
+          ENDSSH
+
+      - name: Health Check
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          echo "🏥 Running health check..."
+          sleep 30
+          
+          ssh $VPS_USER@$VPS_HOST << 'ENDSSH'
+            for i in {1..5}; do
+              if curl -sf http://localhost:8093/api/health > /dev/null 2>&1; then
+                echo "✅ Health check passed!"
+                sudo docker ps | grep genovaai-server
+                exit 0
+              fi
+              echo "Attempt $i failed, retrying..."
+              sleep 5
+            done
+            
+            echo "❌ Health check failed!"
+            sudo docker logs genovaai-server --tail 50
+            exit 1
+          ENDSSH
+
+      - name: Generate deployment summary
+        if: success()
+        run: |
+          echo "## 🚀 Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Service:** GenovaAI Server" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://genova.genfity.com" >> $GITHUB_STEP_SUMMARY
+
+  # ===================================================================================
+  # CLEANUP JOB (Runs regardless of success/failure)
+  # ===================================================================================
+  cleanup:
+    name: Cleanup Old Resources
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+    
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Cleanup server
+        continue-on-error: true
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh $VPS_USER@$VPS_HOST << 'ENDSSH'
+            echo "🧹 Running scheduled cleanup..."
+            sudo docker system prune -f --filter "until=24h"
+            echo "✅ Cleanup complete!"
+          ENDSSH

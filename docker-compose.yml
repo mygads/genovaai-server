@@ -1,0 +1,68 @@
+# ===================================================================================
+# GENOVAAI SERVER - DOCKER COMPOSE
+# ===================================================================================
+#
+# Single docker-compose for production deployment.
+# For development, use: npm run dev (tanpa Docker)
+#
+# USAGE:
+#   Local test:  docker compose up -d --build
+#   CI/CD:       IMAGE=ghcr.io/mygads/genovaai-server:latest docker compose up -d --pull always
+#
+# ARCHITECTURE:
+#   - Standalone container (NOT connected to other app containers)
+#   - Database: PostgreSQL on host via PgBouncer (host.docker.internal:6432)
+#   - Network: genfity-network (for infra access only, not for inter-app comms)
+#
+# ===================================================================================
+
+services:
+  genovaai-server:
+    image: ${IMAGE:-genovaai-server:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: genovaai-server
+    ports:
+      - "127.0.0.1:8093:3000"
+    env_file:
+      - .env
+    networks:
+      - genfity-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - genovaai-uploads:/app/uploads
+    restart: unless-stopped
+    # Security Hardening
+    read_only: true
+    tmpfs:
+      - /tmp:size=100M,mode=1777
+      - /app/.next/cache:size=500M,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  genovaai-uploads:
+    name: genovaai-uploads
+
+networks:
+  genfity-network:
+    external: true
+    name: genfity-network
