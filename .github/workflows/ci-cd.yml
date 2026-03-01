@@ -211,7 +211,7 @@ jobs:
               -v "$PRISMA_PATH":/app/prisma:ro \
               -w /app \
               node:20-alpine sh -c "
-                npm install prisma@latest --silent 2>/dev/null
+                npm install prisma@6.19.0 --silent 2>/dev/null
                 
                 # Try migrate deploy first (for existing migrations)
                 echo 'Attempting prisma migrate deploy...'
