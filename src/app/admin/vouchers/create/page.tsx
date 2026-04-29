@@ -20,8 +20,6 @@ export default function CreateVoucherPage() {
     allowMultipleUsePerUser: false,
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
-    creditBonus: '',
-    balanceBonus: '',
     isActive: true,
   });
 
@@ -41,8 +39,6 @@ export default function CreateVoucherPage() {
       allowMultipleUsePerUser: formData.allowMultipleUsePerUser,
       startDate: formData.startDate,
       endDate: formData.endDate || undefined,
-      creditBonus: formData.creditBonus ? parseInt(formData.creditBonus) : undefined,
-      balanceBonus: formData.balanceBonus ? parseFloat(formData.balanceBonus) : undefined,
       isActive: formData.isActive,
     };
 
@@ -129,19 +125,13 @@ export default function CreateVoucherPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Type *
+                  Type
                 </label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="balance">Balance (Top-up Balance)</option>
-                  <option value="credit">Credit (Buy Credits)</option>
-                </select>
+                <div className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
+                  Balance voucher
+                </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {formData.type === 'balance' ? 'For balance top-up transactions' : 'For credit purchase transactions'}
+                  Vouchers are applied to balance top-up and paid balance usage.
                 </p>
               </div>
 
@@ -259,40 +249,6 @@ export default function CreateVoucherPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Credit Bonus
-                  {formData.type === 'credit' && <span className="text-green-600"> (Recommended)</span>}
-                </label>
-                <input
-                  type="number"
-                  value={formData.creditBonus}
-                  onChange={(e) => setFormData({ ...formData, creditBonus: e.target.value })}
-                  disabled={formData.type === 'balance'}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {formData.type === 'credit' ? 'Bonus credits given to user' : 'Only for credit vouchers'}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Balance Bonus (Rp)
-                  {formData.type === 'balance' && <span className="text-green-600"> (Recommended)</span>}
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.balanceBonus}
-                  onChange={(e) => setFormData({ ...formData, balanceBonus: e.target.value })}
-                  disabled={formData.type === 'credit'}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {formData.type === 'balance' ? 'Bonus balance given to user' : 'Only for balance vouchers'}
-                </p>
-              </div>
 
               <div className="md:col-span-2">
                 <label className="flex items-center gap-2">

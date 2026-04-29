@@ -2,19 +2,19 @@ import Link from "next/link";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Genova AI - Asisten AI Pintar untuk Belajar, Riset & Memahami Konsep Sulit | Gemini & GPT",
-  description: "Genova AI: Chrome Extension AI terbaik dengan Gemini 3.0 Pro & GPT-5.1 untuk menjawab pertanyaan, menjelaskan konsep sulit, riset cepat, dan membantu belajar. Gratis 5 kredit premium! Hanya Rp 500/kredit. Support PDF, custom knowledge base.",
-  keywords: "genovaai, genova, kuis ai, extension kuis, ai assistant indonesia, chrome extension ai, asisten belajar ai, riset dengan ai, pahami konsep sulit, gemini pro indonesia, gpt-5.1 indonesia, ai untuk mahasiswa, ai research assistant, homework helper, study ai tool",
+  title: "Genova AI - Asisten AI Pintar untuk Belajar, Riset & Memahami Konsep Sulit | OpenAI-Compatible",
+  description: "Genova AI adalah Chrome Extension AI untuk belajar, riset, dan memahami konsep sulit. Gunakan BYOK provider OpenAI-compatible Anda sendiri atau saldo Genova untuk model berbayar. Support PDF dan custom knowledge base.",
+  keywords: "genovaai, genova, kuis ai, extension kuis, ai assistant indonesia, chrome extension ai, asisten belajar ai, riset dengan ai, pahami konsep sulit, openai compatible, byok ai, ai untuk mahasiswa, ai research assistant, homework helper, study ai tool",
   openGraph: {
     title: "Genova AI - Asisten AI Pintar untuk Belajar & Riset",
-    description: "Chrome Extension AI dengan Gemini 3.0 Pro & GPT-5.1. Gratis 5 kredit premium! Mulai dari Rp 500/kredit. Jawab pertanyaan, pahami konsep sulit, riset cepat.",
+    description: "Chrome Extension AI dengan BYOK OpenAI-compatible atau saldo Genova untuk model berbayar. Jawab pertanyaan, pahami konsep sulit, dan riset lebih cepat.",
     type: "website",
     locale: "id_ID",
   },
   twitter: {
     card: "summary_large_image",
     title: "Genova AI - Asisten AI untuk Kuis, Belajar & Riset",
-    description: "Chrome Extension AI dengan Gemini & GPT. Gratis 5 kredit premium! Jawab pertanyaan & pahami konsep sulit.",
+    description: "Chrome Extension AI dengan BYOK OpenAI-compatible dan model berbayar berbasis saldo Genova.",
   },
 };
 
@@ -91,7 +91,7 @@ export default function Home() {
           Belajar, Riset & Pahami Konsep Sulit dari Kuis & Soal dengan AI
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-10">
-          Genova AI membantu Anda mendapatkan jawaban cepat, memahami konsep yang sulit, melakukan riset, dan belajar lebih efektif dibuat untuk menjawab kuis dan soal dengan lebih mudah dengan extension chrome, simple dan mudah digunakan. Didukung Gemini 3.0 Pro & GPT-5.1 dengan knowledge base custom, upload PDF, dan analisis mendalam.
+          Genova AI membantu Anda mendapatkan jawaban cepat, memahami konsep yang sulit, melakukan riset, dan belajar lebih efektif langsung dari Chrome extension. Gunakan provider OpenAI-compatible Anda sendiri dengan BYOK atau saldo Genova untuk model berbayar, lengkap dengan knowledge base custom, upload PDF, dan analisis mendalam.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Link 
@@ -154,9 +154,9 @@ export default function Home() {
             <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl flex items-center justify-center mb-4">
               <span className="text-2xl">🔑</span>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">3 Flexible Request Modes</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">2 Flexible Request Modes</h3>
             <p className="text-gray-600 dark:text-gray-300">
-              <strong>Free:</strong> Pakai API key sendiri (unlimited). <strong>Free Pool:</strong> Gratis pakai pool kami (min saldo Rp 1). <strong>Premium:</strong> Rp 500/request untuk model terbaik.
+              <strong>BYOK:</strong> Pakai provider OpenAI-compatible Anda sendiri. <strong>Paid Balance:</strong> Gunakan saldo Genova untuk model yang diaktifkan admin.
             </p>
           </div>
 
@@ -176,9 +176,9 @@ export default function Home() {
             <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center mb-4">
               <span className="text-2xl">🚀</span>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Premium AI Models</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">OpenAI-Compatible Models</h3>
             <p className="text-gray-600 dark:text-gray-300">
-              Akses ke Gemini 3.0 Pro, GPT-5.1, dan model premium lainnya. Reasoning lebih baik, analisis mendalam, jawaban lebih akurat, dan response lebih cepat.
+              Akses model OpenAI-compatible dari provider BYOK Anda atau dari katalog paid balance yang diaktifkan admin. Reasoning lebih baik, analisis mendalam, dan jawaban lebih akurat.
             </p>
           </div>
         </div>
@@ -191,21 +191,20 @@ export default function Home() {
           <p className="text-lg text-gray-600 dark:text-gray-300">Pilih paket yang sesuai dengan kebutuhan Anda</p>
         </div>
         <div className="grid md:grid-cols-3 gap-8">
-          {/* Free Plan */}
           <div className="p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Free</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">BYOK</h3>
             <div className="mb-6">
               <span className="text-4xl font-bold text-gray-900 dark:text-white">Rp 0</span>
-              <span className="text-gray-600 dark:text-gray-400">/bulan</span>
+              <span className="text-gray-600 dark:text-gray-400"> biaya Genova</span>
             </div>
             <ul className="space-y-3 mb-8">
               <li className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                 <span className="text-green-500 mt-1">✓</span>
-                <span>Gunakan API key Gemini sendiri</span>
+                <span>Gunakan provider OpenAI-compatible Anda sendiri</span>
               </li>
               <li className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                 <span className="text-green-500 mt-1">✓</span>
-                <span>Unlimited requests (sesuai limit API key)</span>
+                <span>Genova tidak memotong saldo saat request</span>
               </li>
               <li className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                 <span className="text-green-500 mt-1">✓</span>
@@ -220,88 +219,81 @@ export default function Home() {
                 <span>Chat history</span>
               </li>
             </ul>
-            <Link 
-              href="/register" 
+            <Link
+              href="/register"
               className="block w-full py-3 text-center border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:border-gray-400 dark:hover:border-gray-500 transition-all font-semibold"
             >
-              Mulai Gratis
+              Mulai dengan BYOK
             </Link>
           </div>
 
-          {/* Pool Plan */}
           <div className="p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border-2 border-blue-500 relative">
             <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 px-4 py-1 bg-linear-to-r from-blue-500 to-purple-600 text-white text-sm font-bold rounded-full">
               POPULER
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Pool Free</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Paid Balance</h3>
             <div className="mb-6">
-              <span className="text-4xl font-bold text-gray-900 dark:text-white">Rp 0</span>
+              <span className="text-4xl font-bold text-gray-900 dark:text-white">Sesuai model</span>
               <span className="text-gray-600 dark:text-gray-400">/request</span>
             </div>
             <ul className="space-y-3 mb-8">
               <li className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                 <span className="text-green-500 mt-1">✓</span>
-                <span>Gunakan pool API key (gratis)</span>
+                <span>Gunakan saldo Genova untuk model berbayar</span>
               </li>
               <li className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                 <span className="text-green-500 mt-1">✓</span>
-                <span>Wajib punya saldo (min Rp 1)</span>
+                <span>Pilih model yang diaktifkan admin</span>
               </li>
               <li className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                 <span className="text-green-500 mt-1">✓</span>
-                <span>Smart retry system</span>
+                <span>Harga per request transparan di settings</span>
               </li>
               <li className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                 <span className="text-green-500 mt-1">✓</span>
-                <span>Auto fallback ke admin key</span>
+                <span>Refund otomatis jika provider gagal</span>
               </li>
               <li className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                 <span className="text-green-500 mt-1">✓</span>
-                <span>Semua fitur Free Plan</span>
+                <span>Semua fitur knowledge base dan session tetap tersedia</span>
               </li>
             </ul>
-            <Link 
-              href="/register" 
+            <Link
+              href="/register"
               className="block w-full py-3 text-center bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all font-semibold shadow-lg"
             >
               Mulai Sekarang
             </Link>
           </div>
 
-          {/* Premium Plan */}
           <div className="p-8 bg-linear-to-br from-purple-500 to-blue-600 rounded-2xl shadow-xl text-white">
-            <h3 className="text-2xl font-bold mb-2">Premium</h3>
+            <h3 className="text-2xl font-bold mb-2">Admin-Managed Models</h3>
             <div className="mb-6">
-              <span className="text-4xl font-bold">Rp 500</span>
-              <span className="text-purple-100">/ kredit</span>
+              <span className="text-4xl font-bold">OpenAI-compatible</span>
             </div>
             <div className="mb-4 text-sm text-purple-100">
-              Mulai dari <span className="font-bold text-white">Rp 10.000 untuk 20 kredit</span>
+              Katalog model diambil dari provider admin dan bisa diaktifkan per model.
             </div>
             <ul className="space-y-3 mb-8">
               <li className="flex items-start gap-2">
                 <span className="text-yellow-300 mt-1">★</span>
-                <span>Gemini 3.0 Flash & Pro Preview</span>
+                <span>Model mengikuti provider admin yang aktif</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-yellow-300 mt-1">★</span>
-                <span>Model premium lainnya</span>
+                <span>Bisa memakai gateway internal atau provider lain</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-yellow-300 mt-1">★</span>
-                <span>1 request = 1 kredit</span>
+                <span>Display name dan harga diatur dari dashboard admin</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-yellow-300 mt-1">★</span>
-                <span>Response lebih cepat</span>
+                <span>Model BYOK dan paid balance dipilih terpisah</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-yellow-300 mt-1">★</span>
-                <span>Reasoning lebih baik</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-yellow-300 mt-1">★</span>
-                <span className="font-bold">BONUS: 5 kredit gratis dengan kode NEWUSERPRAK</span>
+                <span className="font-bold">Bonus onboarding tetap bisa diberikan lewat voucher bila diaktifkan</span>
               </li>
             </ul>
           </div>
@@ -340,7 +332,7 @@ export default function Home() {
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Register & Login</h3>
             </div>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
-              Daftar akun Genova AI dan dapatkan 5 kredit premium gratis dengan kode voucher <span className="font-bold text-purple-600 dark:text-purple-400">NEWUSERPRAK</span>. Login di extension untuk memulai.
+              Daftar akun Genova AI, login ke extension, lalu pilih apakah ingin memakai BYOK OpenAI-compatible atau saldo Genova untuk model berbayar. Voucher onboarding tetap bisa dipakai jika tersedia.
             </p>
             <Link 
               href="/register"
@@ -362,7 +354,7 @@ export default function Home() {
             <ul className="space-y-2 text-gray-600 dark:text-gray-300">
               <li className="flex items-start gap-2">
                 <span className="text-green-500 mt-1">✓</span>
-                <span><strong>Request Mode:</strong> Free (API Key sendiri), Free Pool (gratis pakai pool), atau Premium</span>
+                <span><strong>Request Mode:</strong> BYOK (provider OpenAI-compatible sendiri) atau Paid Balance</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-500 mt-1">✓</span>
@@ -420,7 +412,7 @@ export default function Home() {
           </h4>
           <div className="grid md:grid-cols-2 gap-4 text-gray-700 dark:text-gray-300">
             <div>
-              <strong>✓ Mode Free Pool:</strong> Pastikan saldo minimal Rp 1 untuk akses gratis dengan pool API key
+              <strong>✓ BYOK:</strong> Simpan base URL dan API key provider OpenAI-compatible Anda lalu refresh model.
             </div>
             <div>
               <strong>✓ Upload Knowledge Base:</strong> Upload materi kuliah/buku untuk jawaban yang lebih akurat
@@ -429,7 +421,7 @@ export default function Home() {
               <strong>✓ Custom Prompt:</strong> Buat prompt khusus untuk domain spesifik (hukum, kedokteran, dll)
             </div>
             <div>
-              <strong>✓ Premium Mode:</strong> Hanya Rp 500/kredit untuk jawaban tercepat dan terakurat
+              <strong>✓ Paid Balance:</strong> Cek harga model di settings sebelum request agar pemakaian saldo tetap terkontrol.
             </div>
           </div>
         </div>
@@ -563,7 +555,7 @@ export default function Home() {
                   Klik icon Genova AI di toolbar, login dengan akun Anda, dan mulai bertanya! 
                 </p>
                 <p className="text-green-600 dark:text-green-400 font-bold">
-                  🎁 Jangan lupa gunakan kode voucher <code className="bg-green-100 dark:bg-green-900 px-2 py-1 rounded">NEWUSERPRAK</code> untuk 5 kredit premium gratis!
+                  🎁 Jika admin menyediakan voucher onboarding, redeem setelah login untuk menambah saldo atau credit bonus sesuai promo yang berlaku.
                 </p>
               </div>
             </div>
@@ -613,16 +605,12 @@ export default function Home() {
               <p className="text-gray-600 dark:text-gray-300 mb-3">Pilih cara menggunakan Genova AI:</p>
               <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
                 <li className="flex items-start gap-2">
-                  <span className="font-bold text-blue-600">Free:</span>
-                  <span>Gunakan API key Gemini sendiri (unlimited)</span>
+                  <span className="font-bold text-blue-600">BYOK:</span>
+                  <span>Gunakan provider OpenAI-compatible Anda sendiri</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="font-bold text-green-600">Free Pool:</span>
-                  <span>Pakai pool API gratis (butuh saldo min Rp 1)</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold text-purple-600">Premium:</span>
-                  <span>Pakai kredit premium (Rp 500/request)</span>
+                  <span className="font-bold text-purple-600">Paid Balance:</span>
+                  <span>Gunakan saldo Genova untuk model yang diaktifkan admin</span>
                 </li>
               </ul>
             </div>
@@ -644,9 +632,9 @@ export default function Home() {
               <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-3">🤖 Model Selection</h4>
               <p className="text-gray-600 dark:text-gray-300 mb-3">Pilih model AI yang digunakan:</p>
               <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                <li><strong>Gemini 3.0 Flash:</strong> Cepat & efisien (Free/Pool)</li>
-                <li><strong>Gemini 3.0 Pro:</strong> Reasoning terbaik (Premium)</li>
-                <li><strong>Custom:</strong> Model lain sesuai ketersediaan</li>
+                <li><strong>BYOK Models:</strong> Mengikuti hasil fetch dari provider OpenAI-compatible Anda</li>
+                <li><strong>Paid Balance Models:</strong> Mengikuti model yang diaktifkan admin</li>
+                <li><strong>Custom:</strong> Display name bisa berbeda sesuai konfigurasi admin/provider</li>
               </ul>
             </div>
 
@@ -681,7 +669,7 @@ export default function Home() {
                 <li>✓ <strong>Auto-save Chat:</strong> Simpan otomatis semua percakapan</li>
                 <li>✓ <strong>Bubble Position:</strong> Atur posisi chat bubble</li>
                 <li>✓ <strong>Theme:</strong> Light/Dark mode</li>
-                <li>✓ <strong>Notifications:</strong> Notifikasi kredit & status</li>
+                <li>✓ <strong>Notifications:</strong> Notifikasi saldo, voucher, dan status request</li>
               </ul>
             </div>
           </div>
@@ -694,7 +682,7 @@ export default function Home() {
             <div className="space-y-3 text-gray-700 dark:text-gray-300">
               <p><strong>💡 Untuk soal pilihan ganda:</strong> Gunakan Answer Length &ldquo;Single&rdquo; atau &ldquo;Short&rdquo; agar cepat</p>
               <p><strong>💡 Untuk essay:</strong> Gunakan &ldquo;Medium&rdquo; atau &ldquo;Long&rdquo; untuk penjelasan detail</p>
-              <p><strong>💡 Hemat kredit:</strong> Gunakan Free Pool mode dengan saldo minimal untuk gratis</p>
+              <p><strong>💡 Hemat biaya:</strong> Gunakan BYOK jika Anda sudah punya provider sendiri dan pakai paid balance hanya saat perlu.</p>
               <p><strong>💡 Jawaban akurat:</strong> Upload knowledge base (PDF materi kuliah) sebelum bertanya</p>
               <p><strong>💡 Domain spesifik:</strong> Buat custom prompt untuk hukum, kedokteran, teknik, dll</p>
             </div>
@@ -717,7 +705,7 @@ export default function Home() {
               <span className="text-2xl group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
-              <p>Genova AI adalah Chrome Extension AI assistant yang membantu Anda belajar, riset, dan memahami konsep sulit dengan cepat. Didukung model AI terkini seperti Gemini 3.0 Pro dan GPT-5.1, Genova AI dapat menjawab pertanyaan, menjelaskan materi kompleks, membantu mengerjakan tugas, dan memberikan insight mendalam berdasarkan dokumen/knowledge base yang Anda upload.</p>
+              <p>Genova AI adalah Chrome Extension AI assistant yang membantu Anda belajar, riset, dan memahami konsep sulit dengan cepat. Genova AI mendukung model OpenAI-compatible melalui BYOK provider pribadi atau katalog paid balance yang dikelola admin, serta dapat menjawab pertanyaan, menjelaskan materi kompleks, membantu mengerjakan tugas, dan memberikan insight mendalam berdasarkan dokumen/knowledge base yang Anda upload.</p>
             </div>
           </details>
 
@@ -728,13 +716,12 @@ export default function Home() {
               <span className="text-2xl group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
-              <p className="mb-3"><strong>Genova AI tersedia dalam 3 mode:</strong></p>
+              <p className="mb-3"><strong>Genova AI tersedia dalam 2 mode request:</strong></p>
               <ul className="space-y-2">
-                <li>• <strong>Mode Gratis (Free):</strong> Gunakan API key Gemini Anda sendiri - unlimited dan gratis!</li>
-                <li>• <strong>Mode Free Pool:</strong> Pakai pool API key gratis (butuh saldo minimal Rp 1 sebagai verifikasi)</li>
-                <li>• <strong>Mode Premium:</strong> Hanya <strong>Rp 500 per request</strong> untuk akses model premium (Gemini 3.0 Pro, GPT-5.1, dll)</li>
+                <li>• <strong>BYOK:</strong> Gunakan provider OpenAI-compatible Anda sendiri. Biaya provider ditagihkan langsung oleh provider Anda, bukan oleh Genova.</li>
+                <li>• <strong>Paid Balance:</strong> Gunakan saldo Genova untuk model yang diaktifkan admin. Harga per request mengikuti model yang dipilih di settings.</li>
               </ul>
-              <p className="mt-3 text-green-600 dark:text-green-400 font-bold">🎁 Bonus: Dapatkan 5 kredit premium GRATIS dengan kode voucher NEWUSERPRAK saat register!</p>
+              <p className="mt-3 text-green-600 dark:text-green-400 font-bold">🎁 Voucher onboarding tetap bisa digunakan jika admin menyediakannya.</p>
             </div>
           </details>
 
@@ -785,14 +772,14 @@ export default function Home() {
               <span className="text-2xl group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
-              <p className="mb-3"><strong>Genova AI mendukung berbagai model AI terkini:</strong></p>
+              <p className="mb-3"><strong>Genova AI mendukung berbagai model OpenAI-compatible:</strong></p>
               <ul className="space-y-2">
-                <li>• <strong>Google Gemini 3.0 Flash:</strong> Cepat dan efisien (Free & Pool mode)</li>
-                <li>• <strong>Google Gemini 3.0 Pro:</strong> Reasoning terbaik, analisis mendalam (Premium)</li>
-                <li>• <strong>OpenAI GPT-5.1:</strong> Powerful untuk creative writing & complex reasoning (Premium)</li>
-                <li>• Dan model premium lainnya yang terus diupdate</li>
+                <li>• Model dari provider BYOK Anda sendiri setelah fetch <code>/models</code></li>
+                <li>• Model paid balance yang diaktifkan admin dari provider server-side</li>
+                <li>• OpenAI, gateway internal, atau provider lain selama kompatibel dengan API OpenAI</li>
+                <li>• Display name dan harga bisa berubah mengikuti konfigurasi admin/provider</li>
               </ul>
-              <p className="mt-3">Mode Free: Gunakan model yang didukung API key Anda. Mode Premium: Akses semua model premium dengan 1 kredit per request.</p>
+              <p className="mt-3">Mode BYOK memakai model dari provider Anda. Mode Paid Balance memakai model yang tersedia di katalog Genova.</p>
             </div>
           </details>
 
@@ -817,18 +804,18 @@ export default function Home() {
           {/* FAQ 7 */}
           <details className="bg-white dark:bg-gray-800 rounded-2xl shadow-md group">
             <summary className="p-6 cursor-pointer list-none flex items-center justify-between font-semibold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              <span>Bagaimana cara mendapatkan API key Gemini gratis?</span>
+              <span>Bagaimana cara menyiapkan BYOK provider?</span>
               <span className="text-2xl group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
               <ol className="space-y-2">
-                <li><strong>1.</strong> Kunjungi <a href="https://ai.google.dev" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">Google AI Studio (ai.google.dev)</a></li>
-                <li><strong>2.</strong> Login dengan akun Google Anda</li>
-                <li><strong>3.</strong> Klik &ldquo;Get API Key&rdquo; di dashboard</li>
-                <li><strong>4.</strong> Copy API key yang diberikan</li>
-                <li><strong>5.</strong> Paste ke Genova AI extension settings → Request Mode: Free → Save</li>
+                <li><strong>1.</strong> Siapkan provider yang kompatibel dengan API OpenAI dan punya endpoint <code>/models</code> serta <code>/chat/completions</code>.</li>
+                <li><strong>2.</strong> Buka halaman BYOK Provider di dashboard Genova.</li>
+                <li><strong>3.</strong> Isi base URL dan API key provider Anda.</li>
+                <li><strong>4.</strong> Simpan lalu pastikan fetch model berhasil.</li>
+                <li><strong>5.</strong> Pilih mode <strong>BYOK</strong> saat membuat session dan gunakan model yang tersedia.</li>
               </ol>
-              <p className="mt-3 text-green-600 dark:text-green-400">✅ API key Gemini gratis dengan quota yang cukup besar untuk penggunaan harian!</p>
+              <p className="mt-3 text-green-600 dark:text-green-400">✅ Selama provider Anda OpenAI-compatible, Genova dapat memakainya sebagai BYOK.</p>
             </div>
           </details>
 
@@ -873,17 +860,17 @@ export default function Home() {
           {/* FAQ 10 */}
           <details className="bg-white dark:bg-gray-800 rounded-2xl shadow-md group">
             <summary className="p-6 cursor-pointer list-none flex items-center justify-between font-semibold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              <span>Bagaimana cara top-up kredit atau menghubungi support?</span>
+              <span>Bagaimana cara top-up balance atau menghubungi support?</span>
               <span className="text-2xl group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="px-6 pb-6 text-gray-600 dark:text-gray-300">
-              <p className="mb-3"><strong>Top-up Kredit:</strong></p>
+              <p className="mb-3"><strong>Top-up Balance:</strong></p>
               <ul className="space-y-2 mb-4">
                 <li>• Login ke <a href="/dashboard" className="text-blue-600 dark:text-blue-400 hover:underline">Dashboard Genova AI</a></li>
-                <li>• Pilih menu "Balance" atau "Buy Credits"</li>
-                <li>• Pilih paket kredit (mulai 10 kredit = Rp 5.000)</li>
+                <li>• Pilih menu "Balance" atau top-up balance</li>
+                <li>• Masukkan nominal saldo yang ingin ditambahkan</li>
                 <li>• Bayar via payment gateway (QRIS, Virtual Account, E-wallet)</li>
-                <li>• Kredit otomatis masuk setelah pembayaran sukses</li>
+                <li>• Saldo otomatis masuk setelah pembayaran sukses</li>
               </ul>
               <p className="mb-3"><strong>Hubungi Support:</strong></p>
               <ul className="space-y-2">

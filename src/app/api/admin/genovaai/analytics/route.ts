@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyAccessToken, isAdminRole } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/admin/genovaai/analytics - Dashboard statistics
+function getRangeStart(range: string) {
+  if (range === 'all') return new Date(0);
+
+  const now = new Date();
+  if (range === 'day') {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  if (range === 'week') {
+    return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  }
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -15,129 +27,121 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.substring(7);
     const payload = await verifyAccessToken(token);
-    if (!payload || payload.role !== 'admin') {
+    if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
       );
     }
 
-    // Calculate start of current month
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    const { searchParams } = new URL(request.url);
+    const range = searchParams.get('range') || 'month';
+    const rangeStart = getRangeStart(range);
 
-    // User statistics
     const [
       totalUsers,
       activeUsers,
-      newThisMonth,
+      newInRange,
       customers,
       admins,
-    ] = await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { isActive: true } }),
-      prisma.user.count({ where: { createdAt: { gte: startOfMonth } } }),
-      prisma.user.count({ where: { role: 'customer' } }),
-      prisma.user.count({ where: { role: { in: ['admin', 'super_admin'] } } }),
-    ]);
-
-    // Credits statistics
-    const creditStats = await prisma.user.aggregate({
-      _sum: { credits: true },
-      _avg: { credits: true },
-    });
-
-    const totalCreditsUsed = await prisma.lLMRequest.aggregate({
-      _sum: { costCredits: true },
-    });
-
-    // Balance statistics
-    const balanceStats = await prisma.user.aggregate({
-      _sum: { balance: true },
-      _avg: { balance: true },
-    });
-
-    // Request statistics
-    const [
+      creditStats,
+      creditUsageStats,
+      balanceStats,
       totalRequests,
       successfulRequests,
       failedRequests,
-      thisMonthRequests,
-      freePoolRequests,
-      freeUserKeyRequests,
-      premiumRequests,
-    ] = await Promise.all([
-      prisma.lLMRequest.count(),
-      prisma.lLMRequest.count({ where: { status: 'success' } }),
-      prisma.lLMRequest.count({ where: { status: { not: 'success' } } }),
-      prisma.lLMRequest.count({ where: { createdAt: { gte: startOfMonth } } }),
-      prisma.lLMRequest.count({ where: { requestMode: 'free_pool' } }),
-      prisma.lLMRequest.count({ where: { requestMode: 'free_user_key' } }),
-      prisma.lLMRequest.count({ where: { requestMode: 'premium' } }),
-    ]);
-
-    // Payment statistics
-    const [
+      paidBalanceRequests,
+      byokRequests,
+      balanceSpent,
       totalPayments,
       completedPayments,
       pendingPayments,
       totalRevenue,
-      thisMonthRevenue,
+      totalVouchers,
+      activeVouchers,
+      totalVoucherUsed,
+      topUsers,
     ] = await Promise.all([
-      prisma.payment.count(),
-      prisma.payment.count({ where: { status: 'completed' } }),
-      prisma.payment.count({ where: { status: 'pending' } }),
+      prisma.user.count(),
+      prisma.user.count({ where: { isActive: true } }),
+      prisma.user.count({ where: { createdAt: { gte: rangeStart } } }),
+      prisma.user.count({ where: { role: 'customer' } }),
+      prisma.user.count({ where: { role: { in: ['admin', 'super_admin'] } } }),
+      prisma.user.aggregate({
+        _sum: { credits: true },
+        _avg: { credits: true },
+      }),
+      prisma.creditTransaction.aggregate({
+        where: {
+          status: 'completed',
+          credits: { lt: 0 },
+          createdAt: { gte: rangeStart },
+        },
+        _sum: { credits: true },
+      }),
+      prisma.user.aggregate({
+        _sum: { balance: true },
+        _avg: { balance: true },
+      }),
+      prisma.lLMRequest.count({ where: { createdAt: { gte: rangeStart } } }),
+      prisma.lLMRequest.count({ where: { createdAt: { gte: rangeStart }, status: 'success' } }),
+      prisma.lLMRequest.count({ where: { createdAt: { gte: rangeStart }, status: { not: 'success' } } }),
+      prisma.lLMRequest.count({ where: { createdAt: { gte: rangeStart }, requestMode: 'paid_balance' } }),
+      prisma.lLMRequest.count({ where: { createdAt: { gte: rangeStart }, requestMode: 'byok' } }),
+      prisma.lLMRequest.aggregate({
+        where: { createdAt: { gte: rangeStart }, requestMode: 'paid_balance', status: 'success' },
+        _sum: { costBalance: true },
+      }),
+      prisma.payment.count({ where: { createdAt: { gte: rangeStart } } }),
+      prisma.payment.count({ where: { status: 'completed', createdAt: { gte: rangeStart } } }),
+      prisma.payment.count({ where: { status: 'pending', createdAt: { gte: rangeStart } } }),
       prisma.payment.aggregate({
-        where: { status: 'completed' },
+        where: { status: 'completed', createdAt: { gte: rangeStart } },
         _sum: { amount: true },
       }),
-      prisma.payment.aggregate({
-        where: { status: 'completed', createdAt: { gte: startOfMonth } },
-        _sum: { amount: true },
-      }),
-    ]);
-
-    // Voucher statistics
-    const [totalVouchers, activeVouchers, totalVoucherUsed] = await Promise.all([
       prisma.voucher.count(),
       prisma.voucher.count({ where: { isActive: true } }),
-      prisma.voucherUsage.count(),
+      prisma.voucherUsage.count({ where: { usedAt: { gte: rangeStart } } }),
+      prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          credits: true,
+          balance: true,
+          _count: {
+            select: {
+              llmRequests: {
+                where: {
+                  createdAt: { gte: rangeStart },
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          llmRequests: {
+            _count: 'desc',
+          },
+        },
+        take: 10,
+      }),
     ]);
-
-    // Top users
-    const topUsers = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        credits: true,
-        balance: true,
-        _count: {
-          select: { llmRequests: true },
-        },
-      },
-      orderBy: {
-        llmRequests: {
-          _count: 'desc',
-        },
-      },
-      take: 10,
-    });
 
     return NextResponse.json({
       success: true,
       data: {
+        range,
         users: {
           total: totalUsers,
           active: activeUsers,
-          newThisMonth,
+          newInRange,
           customers,
           admins,
         },
         credits: {
           totalDistributed: creditStats._sum?.credits || 0,
-          totalUsed: totalCreditsUsed._sum?.costCredits || 0,
+          totalUsed: Math.abs(creditUsageStats._sum?.credits || 0),
           averagePerUser: creditStats._avg?.credits || 0,
         },
         balance: {
@@ -148,26 +152,24 @@ export async function GET(request: NextRequest) {
           total: totalRequests,
           successful: successfulRequests,
           failed: failedRequests,
-          thisMonth: thisMonthRequests,
           byMode: {
-            free_pool: freePoolRequests,
-            free_user_key: freeUserKeyRequests,
-            premium: premiumRequests,
+            paid_balance: paidBalanceRequests,
+            byok: byokRequests,
           },
+          balanceSpent: balanceSpent._sum?.costBalance?.toString() || '0',
         },
         payments: {
           total: totalPayments,
           completed: completedPayments,
           pending: pendingPayments,
           totalRevenue: totalRevenue._sum?.amount?.toString() || '0',
-          thisMonthRevenue: thisMonthRevenue._sum?.amount?.toString() || '0',
         },
         vouchers: {
           total: totalVouchers,
           active: activeVouchers,
           totalUsed: totalVoucherUsed,
         },
-        topUsers: topUsers.map(user => ({
+        topUsers: topUsers.map((user) => ({
           id: user.id,
           name: user.name || 'Unnamed',
           email: user.email,

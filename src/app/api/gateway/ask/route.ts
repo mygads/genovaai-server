@@ -105,9 +105,8 @@ export async function POST(request: NextRequest) {
       await logErrorFromRequest(
         request,
         ErrorTypes.GATEWAY_ERROR,
-        response.error?.includes('credit') ? ErrorCodes.INSUFFICIENT_CREDITS : 
-        response.error?.includes('balance') ? ErrorCodes.INSUFFICIENT_BALANCE :
-        response.error?.includes('API key') ? ErrorCodes.NO_API_KEY : undefined,
+        response.error?.toLowerCase().includes('balance') ? ErrorCodes.INSUFFICIENT_BALANCE :
+        response.error?.toLowerCase().includes('api key') || response.error?.toLowerCase().includes('provider') ? ErrorCodes.NO_API_KEY : undefined,
         response.error || 'Gateway processing failed',
         undefined,
         payload.userId
@@ -123,9 +122,11 @@ export async function POST(request: NextRequest) {
       data: {
         answer: response.answer,
         requestId: response.requestId,
-        creditsDeducted: response.creditsDeducted,
+        balanceDeducted: response.balanceDeducted,
         cached: response.cached,
         tokensUsed: response.tokensUsed,
+        inputTokens: response.inputTokens,
+        outputTokens: response.outputTokens,
       },
     });
   } catch (error) {

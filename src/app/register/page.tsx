@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -13,11 +11,13 @@ export default function RegisterPage() {
     confirmPassword: "",
   });
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
     // Validasi password
     if (formData.password !== formData.confirmPassword) {
@@ -51,36 +51,8 @@ export default function RegisterPage() {
         throw new Error(errorMessage);
       }
 
-      // Auto login setelah register
-      const loginResponse = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
-
-      const loginData = await loginResponse.json();
-
-      if (loginResponse.ok && loginData.data?.user?.role) {
-        // Simpan token ke localStorage
-        if (loginData.data?.accessToken) {
-          localStorage.setItem("accessToken", loginData.data.accessToken);
-          localStorage.setItem("refreshToken", loginData.data.refreshToken);
-          localStorage.setItem("user", JSON.stringify(loginData.data.user));
-        }
-
-        // Redirect berdasarkan role (default CUSTOMER)
-        if (loginData.data.user.role === "ADMIN") {
-          router.push("/admin/dashboard");
-        } else {
-          router.push("/dashboard");
-        }
-      } else {
-        // Jika auto login gagal, redirect ke login page
-        router.push("/login");
-      }
+      setSuccess(data.message || "Registrasi berhasil. Silakan cek email untuk konfirmasi akun.");
+      setFormData({ name: "", email: "", password: "", confirmPassword: "" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan");
     } finally {
@@ -100,14 +72,7 @@ export default function RegisterPage() {
             <span className="text-2xl font-bold text-gray-900 dark:text-white">Genova AI</span>
           </Link>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Buat Akun Baru</h1>
-          <p className="text-gray-600 dark:text-gray-400">Mulai belajar dengan AI sekarang</p>
-          
-          {/* Bonus Banner */}
-          <div className="mt-4 bg-linear-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
-            <p className="text-sm font-semibold text-green-700 dark:text-green-400 text-center">
-              🎁 Bonus Registrasi: 10 Kredit + Kode NEWUSERPRAK untuk 5 Kredit Premium!
-            </p>
-          </div>
+          <p className="text-gray-600 dark:text-gray-400">Daftar normal dan konfirmasi email untuk mulai menggunakan Genova AI</p>
         </div>
 
         {/* Register Form */}
@@ -189,6 +154,12 @@ export default function RegisterPage() {
                     </Link>
                   </p>
                 )}
+              </div>
+            )}
+
+            {success && (
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
+                <p className="text-sm font-semibold text-green-700 dark:text-green-400">{success}</p>
               </div>
             )}
 

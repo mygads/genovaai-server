@@ -1,155 +1,92 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
-import { ApiKeyPoolService } from '@/services/apikey-pool-service';
+import { ProviderCredentialService } from '@/services/provider-credential-service';
+import { z } from 'zod';
 
-/**
- * GET /api/customer/genovaai/apikeys
- * Get user's API keys
- */
+const upsertProviderSchema = z.object({
+  name: z.string().optional(),
+  baseUrl: z.string().url(),
+  apiKey: z.string().min(1),
+  defaultModel: z.string().optional(),
+});
+
+async function getPayload(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) return null;
+
+  const token = authHeader.substring(7);
+  return verifyAccessToken(token);
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await getPayload(request);
     if (!payload) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const keys = await ApiKeyPoolService.getUserApiKeys(payload.userId);
-    console.log('[API Keys] User:', payload.userId, 'Keys:', keys);
-    
-    // Return in expected format
+    const provider = await ProviderCredentialService.getCustomerProvider(payload.userId);
+
     return NextResponse.json({
       success: true,
       data: {
-        apiKeys: keys,
+        provider,
+        apiKeys: provider ? [provider] : [],
       },
     });
   } catch (error) {
-    console.error('API keys fetch error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('BYOK provider fetch error:', error);
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
 
-/**
- * POST /api/customer/genovaai/apikeys
- * Add new API key
- */
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await getPayload(request);
     if (!payload) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { apiKey, name } = body;
-
-    if (!apiKey) {
+    const validation = upsertProviderSchema.safeParse(body);
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: 'API key is required' },
+        { success: false, error: 'Validation failed', details: validation.error.issues },
         { status: 400 }
       );
     }
 
-    const result = await ApiKeyPoolService.addUserApiKey(payload.userId, apiKey, name);
-    
-    if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: result.error },
-        { status: 400 }
-      );
-    }
+    const provider = await ProviderCredentialService.upsertCustomerProvider(payload.userId, validation.data);
 
     return NextResponse.json({
       success: true,
-      message: 'API key added successfully',
+      message: 'BYOK provider saved and validated successfully',
+      data: { provider },
     });
   } catch (error) {
-    console.error('API key add error:', error);
+    console.error('BYOK provider save error:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
+      { success: false, error: error instanceof Error ? error.message : 'Failed to save BYOK provider' },
+      { status: 400 }
     );
   }
 }
 
-/**
- * DELETE /api/customer/genovaai/apikeys?id=xxx
- * Delete user API key
- */
 export async function DELETE(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await getPayload(request);
     if (!payload) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const keyId = searchParams.get('id');
-
-    if (!keyId) {
-      return NextResponse.json(
-        { success: false, error: 'Key ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const success = await ApiKeyPoolService.deleteUserApiKey(payload.userId, keyId);
-    
+    const success = await ProviderCredentialService.deleteCustomerProvider(payload.userId);
     if (!success) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete API key' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'BYOK provider not found' }, { status: 404 });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'API key deleted successfully',
-    });
+    return NextResponse.json({ success: true, message: 'BYOK provider deleted successfully' });
   } catch (error) {
-    console.error('API key delete error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('BYOK provider delete error:', error);
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -4,7 +4,7 @@ import { verifyAccessToken } from '@/lib/auth-genovaai';
 
 /**
  * GET /api/customer/genovaai/system-settings
- * Get public system settings (like premium mode availability)
+ * Get public system settings used by the customer app
  */
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const settings = await prisma.systemConfig.findMany({
       where: {
         key: {
-          in: ['premium_mode_enabled'],
+          in: ['paid_balance_enabled', 'topup_enabled'],
         },
       },
       select: {

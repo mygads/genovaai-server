@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyAccessToken, isAdminRole } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -22,7 +22,7 @@ export async function PATCH(
 
     const token = authHeader.substring(7);
     const payload = await verifyAccessToken(token);
-    if (!payload || payload.role !== 'admin') {
+    if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -122,7 +122,7 @@ export async function DELETE(
 
     const token = authHeader.substring(7);
     const payload = await verifyAccessToken(token);
-    if (!payload || payload.role !== 'admin') {
+    if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }

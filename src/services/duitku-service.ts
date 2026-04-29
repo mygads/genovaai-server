@@ -5,7 +5,7 @@ const DUITKU_MERCHANT_CODE = process.env.DUITKU_MERCHANT_CODE || '';
 const DUITKU_API_KEY = process.env.DUITKU_API_KEY || '';
 const DUITKU_BASE_URL = process.env.DUITKU_BASE_URL || 'https://sandbox.duitku.com/webapi/api/merchant';
 const CALLBACK_URL = process.env.DUITKU_CALLBACK_URL || 'https://genova.genfity.com/api/payment/callback';
-const RETURN_URL = process.env.DUITKU_RETURN_URL || 'https://genova.genfity.com/payment/success';
+const RETURN_URL = process.env.DUITKU_RETURN_URL || 'https://genova.genfity.com/dashboard/balance';
 
 export interface DuitkuPaymentRequest {
   merchantOrderId: string;

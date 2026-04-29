@@ -165,76 +165,24 @@ export function formatUserQuestion(
 }
 
 /**
- * Get thinking config based on model and answer mode
- * - Gemini 3 models use thinkingLevel (low/high)
- * - Gemini 2.5 models use thinkingBudget (token count)
- */
-export function getThinkingConfig(
-  model: string,
-  answerMode: 'single' | 'short' | 'medium' | 'long'
-): {
-  thinkingLevel?: 'low' | 'high';
-  thinkingBudget?: number;
-} {
-  // Gemini 3 models use thinkingLevel
-  if (model.includes('gemini-3')) {
-    // Use low thinking for single/short answers (faster response)
-    // Use high thinking for medium/long answers (better reasoning)
-    return {
-      thinkingLevel: answerMode === 'single' || answerMode === 'short' ? 'low' : 'high',
-    };
-  }
-
-  // Gemini 2.5 models use thinkingBudget
-  if (model.includes('gemini-2.5')) {
-    // Disable thinking for simple single answers (no thinking needed)
-    // Enable thinking for more complex responses (better quality)
-    if (answerMode === 'single') {
-      return { thinkingBudget: 0 };
-    } else if (answerMode === 'short') {
-      return { thinkingBudget: 4096 };
-    } else {
-      return { thinkingBudget: 8192 };
-    }
-  }
-
-  return {};
-}
-
-/**
  * Get caching config based on model and context size
  * Caching reduces costs for repeated requests with large knowledge bases
  */
 export function getCachingConfig(
-  model: string,
+  _model: string,
   contextLength: number
 ): {
   enabled: boolean;
   minTokens: number;
   ttlSeconds: number;
 } {
-  // Estimate tokens (rough: 1 token ≈ 4 characters)
   const estimatedTokens = Math.floor(contextLength / 4);
-
-  // Minimum tokens required for caching per model
-  const minTokenLimits: Record<string, number> = {
-    'gemini-3-pro-preview': 2048,
-    'gemini-2.5-pro': 4096,
-    'gemini-2.5-flash': 1024,
-    'gemini-2.5-flash-lite': 1024,
-    'gemini-2.0-flash': 1024,
-    'gemini-1.5-pro': 4096,
-    'gemini-1.5-flash': 1024,
-  };
-
-  // Find matching model key
-  const modelKey = Object.keys(minTokenLimits).find((key) => model.includes(key));
-  const minTokens = modelKey ? minTokenLimits[modelKey] : 4096;
+  const minTokens = 4096;
 
   return {
     enabled: estimatedTokens >= minTokens,
     minTokens,
-    ttlSeconds: 3600, // 1 hour TTL for cached content
+    ttlSeconds: 3600,
   };
 }
 

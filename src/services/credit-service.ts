@@ -23,51 +23,55 @@ export class CreditService {
    */
   static async canMakeRequest(
     userId: string,
-    mode: 'free_user_key' | 'free_pool' | 'premium'
+    mode: 'byok' | 'paid_balance',
+    model?: string
   ): Promise<{ allowed: boolean; reason?: string }> {
     const user = await this.getUserBalance(userId);
-    
+
     if (!user) {
       return { allowed: false, reason: 'User not found' };
     }
 
     switch (mode) {
-      case 'free_user_key':
-        // Check if user has submitted API key
-        const userKey = await prisma.geminiAPIKey.findFirst({
-          where: { 
-            userId,
-            status: { in: ['active', 'rate_limited'] } // rate_limited might recover
-          },
+      case 'byok': {
+        const provider = await prisma.customerLLMProvider.findUnique({
+          where: { userId },
+          select: { status: true },
         });
-        
-        if (!userKey) {
-          return { 
-            allowed: false, 
-            reason: 'No active Gemini API key found. Please add your API key in settings.' 
-          };
-        }
-        return { allowed: true };
 
-      case 'free_pool':
-        // Check if balance > 0 OR credits > 0
-        if (Number(user.balance) <= 0 && user.credits < 1) {
-          return { 
-            allowed: false, 
-            reason: 'Insufficient balance or credits. Please top-up balance or purchase credits to use free pool mode.' 
+        if (!provider || provider.status !== 'active') {
+          return {
+            allowed: false,
+            reason: 'No active BYOK provider found. Please add an OpenAI-compatible API key in settings.',
           };
         }
-        return { allowed: true };
 
-      case 'premium':
-        // Check if credits > 0
-        if (user.credits < 1) {
-          return { 
-            allowed: false, 
-            reason: 'Insufficient credits. Please purchase credits to use premium models.' 
+        return { allowed: true };
+      }
+
+      case 'paid_balance': {
+        if (!model) {
+          return { allowed: false, reason: 'Please select a paid model.' };
+        }
+
+        const paidModel = await prisma.paidLLMModel.findFirst({
+          where: { modelId: model, enabled: true },
+          select: { pricePerRequest: true },
+        });
+
+        if (!paidModel) {
+          return { allowed: false, reason: 'Selected paid model is not available.' };
+        }
+
+        if (Number(user.balance) < Number(paidModel.pricePerRequest)) {
+          return {
+            allowed: false,
+            reason: 'Insufficient balance. Please top up balance to use this model.',
           };
         }
+
         return { allowed: true };
+      }
 
       default:
         return { allowed: false, reason: 'Invalid mode' };
@@ -75,7 +79,7 @@ export class CreditService {
   }
 
   /**
-   * Deduct credits for premium request
+   * Deduct credits for legacy credit-based flows
    */
   static async deductCredits(
     userId: string,
@@ -155,6 +159,77 @@ export class CreditService {
       return true;
     } catch (error) {
       console.error('Failed to add credits:', error);
+      return false;
+    }
+  }
+
+  static async deductBalanceForLLM(
+    userId: string,
+    amount: number,
+    description: string
+  ): Promise<boolean> {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const updated = await tx.user.updateMany({
+          where: {
+            id: userId,
+            balance: { gte: amount },
+          },
+          data: {
+            balance: { decrement: amount },
+          },
+        });
+
+        if (updated.count === 0) {
+          throw new Error('Insufficient balance');
+        }
+
+        await tx.creditTransaction.create({
+          data: {
+            userId,
+            type: 'llm_usage',
+            amount: -amount,
+            credits: 0,
+            description,
+            status: 'completed',
+          },
+        });
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Failed to deduct LLM balance:', error);
+      return false;
+    }
+  }
+
+  static async refundBalanceForLLM(
+    userId: string,
+    amount: number,
+    description: string
+  ): Promise<boolean> {
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: userId },
+          data: { balance: { increment: amount } },
+        });
+
+        await tx.creditTransaction.create({
+          data: {
+            userId,
+            type: 'llm_refund',
+            amount,
+            credits: 0,
+            description,
+            status: 'completed',
+          },
+        });
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Failed to refund LLM balance:', error);
       return false;
     }
   }

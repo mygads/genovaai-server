@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FaUsers, FaCoins, FaChartLine, FaRobot, FaMoneyBillWave, FaTicketAlt } from 'react-icons/fa';
+import { FaUsers, FaCoins, FaChartLine, FaRobot, FaMoneyBillWave, FaTicketAlt, FaWallet, FaKey } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 interface AnalyticsData {
+  range: 'day' | 'week' | 'month' | 'all';
   users: {
     total: number;
     active: number;
-    newThisMonth: number;
+    newInRange: number;
     customers: number;
     admins: number;
   };
@@ -26,19 +27,17 @@ interface AnalyticsData {
     total: number;
     successful: number;
     failed: number;
-    thisMonth: number;
     byMode: {
-      free_pool: number;
-      free_user_key: number;
-      premium: number;
+      paid_balance: number;
+      byok: number;
     };
+    balanceSpent: string;
   };
   payments: {
     total: number;
     completed: number;
     pending: number;
     totalRevenue: string;
-    thisMonthRevenue: string;
   };
   vouchers: {
     total: number;
@@ -62,6 +61,7 @@ export default function AdminAnalyticsPage() {
 
   useEffect(() => {
     fetchAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRange]);
 
   async function fetchAnalytics() {
@@ -69,18 +69,32 @@ export default function AdminAnalyticsPage() {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(`/api/admin/genovaai/analytics?range=${timeRange}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       const data = await response.json();
       if (data.success) {
         setAnalytics(data.data);
+      } else {
+        setAnalytics(null);
       }
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
+      setAnalytics(null);
     } finally {
       setLoading(false);
     }
+  }
+
+  function formatRupiah(value: string) {
+    return parseFloat(value || '0').toLocaleString('id-ID');
+  }
+
+  function getRangeLabel(range: AnalyticsData['range']) {
+    if (range === 'day') return 'Today';
+    if (range === 'week') return 'This Week';
+    if (range === 'month') return 'This Month';
+    return 'All Time';
   }
 
   if (loading) {
@@ -99,17 +113,24 @@ export default function AdminAnalyticsPage() {
     );
   }
 
+  const successRate = analytics.requests.total > 0
+    ? ((analytics.requests.successful / analytics.requests.total) * 100).toFixed(1)
+    : '0.0';
+
+  const failureRate = analytics.requests.total > 0
+    ? ((analytics.requests.failed / analytics.requests.total) * 100).toFixed(1)
+    : '0.0';
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">System Analytics</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Overview of Genova AI platform metrics</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Overview of Genova AI platform metrics and OpenAI-compatible usage.</p>
         </div>
         <select
           value={timeRange}
-          onChange={(e) => setTimeRange(e.target.value as any)}
+          onChange={(event) => setTimeRange(event.target.value as 'day' | 'week' | 'month' | 'all')}
           className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
         >
           <option value="day">Today</option>
@@ -119,7 +140,6 @@ export default function AdminAnalyticsPage() {
         </select>
       </div>
 
-      {/* User Stats */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">User Statistics</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -151,8 +171,9 @@ export default function AdminAnalyticsPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">New This Month</p>
-                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{analytics.users.newThisMonth}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">New in Range</p>
+                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{analytics.users.newInRange}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{getRangeLabel(analytics.range)}</p>
                 </div>
                 <FaUsers className="w-8 h-8 text-purple-600 dark:text-purple-400" />
               </div>
@@ -185,7 +206,6 @@ export default function AdminAnalyticsPage() {
         </div>
       </div>
 
-      {/* Credits & Balance */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Credits & Balance</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -194,9 +214,7 @@ export default function AdminAnalyticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Total Credits</p>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {analytics.credits.totalDistributed.toLocaleString()}
-                  </p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{analytics.credits.totalDistributed.toLocaleString()}</p>
                 </div>
                 <FaCoins className="w-8 h-8 text-blue-600 dark:text-blue-400" />
               </div>
@@ -208,9 +226,7 @@ export default function AdminAnalyticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Credits Used</p>
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                    {analytics.credits.totalUsed.toLocaleString()}
-                  </p>
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">{analytics.credits.totalUsed.toLocaleString()}</p>
                 </div>
                 <FaCoins className="w-8 h-8 text-red-600 dark:text-red-400" />
               </div>
@@ -221,10 +237,8 @@ export default function AdminAnalyticsPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Avg/User</p>
-                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {analytics.credits.averagePerUser.toFixed(1)}
-                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Avg Credits/User</p>
+                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{analytics.credits.averagePerUser.toFixed(1)}</p>
                 </div>
                 <FaCoins className="w-8 h-8 text-purple-600 dark:text-purple-400" />
               </div>
@@ -236,9 +250,7 @@ export default function AdminAnalyticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Total Balance</p>
-                  <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                    Rp {parseFloat(analytics.balance.totalBalance).toLocaleString('id-ID')}
-                  </p>
+                  <p className="text-xl font-bold text-green-600 dark:text-green-400">Rp {formatRupiah(analytics.balance.totalBalance)}</p>
                 </div>
                 <FaMoneyBillWave className="w-8 h-8 text-green-600 dark:text-green-400" />
               </div>
@@ -250,9 +262,7 @@ export default function AdminAnalyticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Avg Balance</p>
-                  <p className="text-xl font-bold text-teal-600 dark:text-teal-400">
-                    Rp {parseFloat(analytics.balance.averagePerUser).toLocaleString('id-ID')}
-                  </p>
+                  <p className="text-xl font-bold text-teal-600 dark:text-teal-400">Rp {formatRupiah(analytics.balance.averagePerUser)}</p>
                 </div>
                 <FaMoneyBillWave className="w-8 h-8 text-teal-600 dark:text-teal-400" />
               </div>
@@ -261,7 +271,6 @@ export default function AdminAnalyticsPage() {
         </div>
       </div>
 
-      {/* LLM Requests */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">LLM Request Statistics</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -269,10 +278,8 @@ export default function AdminAnalyticsPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Total Requests</p>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {analytics.requests.total.toLocaleString()}
-                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Requests in Range</p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{analytics.requests.total.toLocaleString()}</p>
                 </div>
                 <FaRobot className="w-8 h-8 text-blue-600 dark:text-blue-400" />
               </div>
@@ -284,12 +291,8 @@ export default function AdminAnalyticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Successful</p>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {analytics.requests.successful.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {((analytics.requests.successful / analytics.requests.total) * 100).toFixed(1)}% success rate
-                  </p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{analytics.requests.successful.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{successRate}% success rate</p>
                 </div>
                 <FaRobot className="w-8 h-8 text-green-600 dark:text-green-400" />
               </div>
@@ -301,12 +304,8 @@ export default function AdminAnalyticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Failed</p>
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                    {analytics.requests.failed.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {((analytics.requests.failed / analytics.requests.total) * 100).toFixed(1)}% failure rate
-                  </p>
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">{analytics.requests.failed.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{failureRate}% failure rate</p>
                 </div>
                 <FaRobot className="w-8 h-8 text-red-600 dark:text-red-400" />
               </div>
@@ -317,56 +316,48 @@ export default function AdminAnalyticsPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">This Month</p>
-                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {analytics.requests.thisMonth.toLocaleString()}
-                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Balance Spent</p>
+                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">Rp {formatRupiah(analytics.requests.balanceSpent)}</p>
                 </div>
-                <FaRobot className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                <FaMoneyBillWave className="w-8 h-8 text-purple-600 dark:text-purple-400" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Request Mode Breakdown */}
         <Card className="border-border/50 shadow-sm mt-4">
           <CardHeader>
             <CardTitle>Request Mode Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Free Pool</p>
-                <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                  {analytics.requests.byMode.free_pool.toLocaleString()}
-                </p>
+                <div className="flex items-center gap-2 mb-2">
+                  <FaWallet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Paid Balance</p>
+                </div>
+                <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{analytics.requests.byMode.paid_balance.toLocaleString()}</p>
               </div>
               <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Free User Key</p>
-                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                  {analytics.requests.byMode.free_user_key.toLocaleString()}
-                </p>
-              </div>
-              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Premium</p>
-                <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-                  {analytics.requests.byMode.premium.toLocaleString()}
-                </p>
+                <div className="flex items-center gap-2 mb-2">
+                  <FaKey className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <p className="text-sm text-gray-600 dark:text-gray-400">BYOK</p>
+                </div>
+                <p className="text-3xl font-bold text-green-600 dark:text-green-400">{analytics.requests.byMode.byok.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Payment Stats */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Payment Statistics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border-border/50 shadow-sm">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Total Payments</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Payments in Range</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.payments.total}</p>
                 </div>
                 <FaMoneyBillWave className="w-8 h-8 text-gray-600 dark:text-gray-400" />
@@ -402,33 +393,16 @@ export default function AdminAnalyticsPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Total Revenue</p>
-                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                    Rp {parseFloat(analytics.payments.totalRevenue).toLocaleString('id-ID')}
-                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Revenue in Range</p>
+                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400">Rp {formatRupiah(analytics.payments.totalRevenue)}</p>
                 </div>
                 <FaChartLine className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50 shadow-sm">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">This Month</p>
-                  <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
-                    Rp {parseFloat(analytics.payments.thisMonthRevenue).toLocaleString('id-ID')}
-                  </p>
-                </div>
-                <FaChartLine className="w-8 h-8 text-purple-600 dark:text-purple-400" />
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* Voucher Stats */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Voucher Statistics</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -470,7 +444,6 @@ export default function AdminAnalyticsPage() {
         </div>
       </div>
 
-      {/* Top Users */}
       <Card className="border-border/50 shadow-sm">
         <CardHeader>
           <CardTitle>Top Users by Activity</CardTitle>
@@ -478,10 +451,7 @@ export default function AdminAnalyticsPage() {
         <CardContent>
           <div className="space-y-3">
             {analytics.topUsers.map((user, index) => (
-              <div
-                key={user.id}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-              >
+              <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Badge variant="secondary">#{index + 1}</Badge>
                   <div>
@@ -490,9 +460,7 @@ export default function AdminAnalyticsPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {user.credits} credits • Rp {parseFloat(user.balance).toLocaleString('id-ID')}
-                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{user.credits} credits • Rp {formatRupiah(user.balance)}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{user.requestCount} requests</p>
                 </div>
               </div>

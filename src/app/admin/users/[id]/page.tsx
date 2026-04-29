@@ -17,11 +17,15 @@ interface UserDetail {
   isActive: boolean;
   role: string;
   createdAt: string;
+  customerLLMProvider: {
+    id: string;
+    name: string;
+    status: string;
+  } | null;
   _count: {
     llmRequests: number;
     creditTransactions: number;
     payments: number;
-    geminiApiKeys: number;
   };
 }
 
@@ -668,8 +672,10 @@ export default function UserDetailPage() {
         </Card>
         <Card className="border-border/50 shadow-sm">
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">API Keys</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{user._count.geminiApiKeys}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">BYOK Provider</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white capitalize">
+              {user.customerLLMProvider?.status || 'None'}
+            </p>
           </CardContent>
         </Card>
       </div>

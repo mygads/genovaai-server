@@ -9,13 +9,11 @@ interface VoucherFormData {
   code: string;
   name: string;
   description: string;
-  type: 'credit' | 'balance';
+  type: 'balance';
   discountType: 'percentage' | 'fixed';
   value: string;
   maxDiscount: string;
   minAmount: string;
-  creditBonus: string;
-  balanceBonus: string;
   maxUses: string;
   allowMultipleUsePerUser: boolean;
   isActive: boolean;
@@ -33,13 +31,11 @@ export default function EditVoucherPage() {
     code: '',
     name: '',
     description: '',
-    type: 'credit',
+    type: 'balance',
     discountType: 'percentage',
     value: '0',
     maxDiscount: '',
     minAmount: '',
-    creditBonus: '',
-    balanceBonus: '',
     maxUses: '',
     allowMultipleUsePerUser: false,
     isActive: true,
@@ -67,13 +63,11 @@ export default function EditVoucherPage() {
           code: v.code,
           name: v.name,
           description: v.description || '',
-          type: v.type,
+          type: 'balance',
           discountType: v.discountType,
           value: v.value || '0',
           maxDiscount: v.maxDiscount || '',
           minAmount: v.minAmount || '',
-          creditBonus: v.creditBonus?.toString() || '',
-          balanceBonus: v.balanceBonus || '',
           maxUses: v.maxUses?.toString() || '',
           allowMultipleUsePerUser: v.allowMultipleUsePerUser || false,
           isActive: v.isActive,
@@ -112,14 +106,12 @@ export default function EditVoucherPage() {
       // Optional fields
       if (formData.maxDiscount) updateData.maxDiscount = parseFloat(formData.maxDiscount);
       if (formData.minAmount) updateData.minAmount = parseFloat(formData.minAmount);
-      if (formData.creditBonus) updateData.creditBonus = parseInt(formData.creditBonus);
-      if (formData.balanceBonus) updateData.balanceBonus = parseFloat(formData.balanceBonus);
       if (formData.maxUses) updateData.maxUses = parseInt(formData.maxUses);
       if (formData.startDate) updateData.startDate = new Date(formData.startDate).toISOString();
       if (formData.endDate) updateData.endDate = new Date(formData.endDate).toISOString();
 
       const response = await fetch(`/api/admin/genovaai/vouchers/${params.id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -204,7 +196,7 @@ export default function EditVoucherPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Welcome Bonus"
+                  placeholder="Top-up Discount"
                 />
               </div>
             </div>
@@ -218,24 +210,18 @@ export default function EditVoucherPage() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="10 credits bonus untuk user baru"
+                placeholder="Balance top-up discount for users"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Type *
+                  Type
                 </label>
-                <select
-                  required
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as 'credit' | 'balance' })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="credit">Credit</option>
-                  <option value="balance">Balance</option>
-                </select>
+                <div className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+                  Balance voucher
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -255,10 +241,10 @@ export default function EditVoucherPage() {
           </CardContent>
         </Card>
 
-        {/* Discount & Bonus */}
+        {/* Discount */}
         <Card className="border-border/50 shadow-sm">
           <CardHeader>
-            <CardTitle>Discount & Bonus</CardTitle>
+            <CardTitle>Discount</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -290,33 +276,6 @@ export default function EditVoucherPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Credit Bonus
-                </label>
-                <input
-                  type="number"
-                  value={formData.creditBonus}
-                  onChange={(e) => setFormData({ ...formData, creditBonus: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="10"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Balance Bonus (Rp)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.balanceBonus}
-                  onChange={(e) => setFormData({ ...formData, balanceBonus: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="10000"
-                />
-              </div>
-            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

@@ -48,7 +48,7 @@ model User {
   llmRequests            LLMRequest[]
   chatHistories          ChatHistory[]
   knowledgeFiles         KnowledgeFile[]
-  geminiApiKeys          GeminiAPIKey[]
+  customerLLMProvider   CustomerLLMProvider?
   systemPrompts          SystemPrompt[]
   extensionSessions      ExtensionSession[]
   userSessions           UserSession[]
@@ -94,7 +94,7 @@ model UserSession {
 model CreditTransaction {
   id          String   @id @default(cuid())
   userId      String
-  type        String   // credit_purchase, credit_used, credit_refund, balance_topup, welcome_bonus
+  type        String   // balance_topup, llm_usage, llm_refund
   amount      Decimal  @db.Decimal(10, 2)
   credits     Int?     // For credit transactions
   description String?
@@ -120,8 +120,8 @@ model CreditTransaction {
 model LLMRequest {
   id               String   @id @default(cuid())
   userId           String
-  requestMode      String   // free_user_key, free_pool, premium
-  provider         String   // gemini, openrouter, anthropic, openai
+  requestMode      String   // byok, paid_balance
+  provider         String   // openai_compatible
   model            String   // Model name used
   
   // Request details
@@ -139,14 +139,15 @@ model LLMRequest {
   inputTokens      Int?
   outputTokens     Int?
   totalTokens      Int?
-  costCredits      Int      @default(0) // Credits deducted
+  costCredits      Int      @default(0) // Deprecated; LLM billing uses costBalance
+  costBalance      Decimal  @default(0) @db.Decimal(10, 2)
   
   // Timing
   responseTimeMs   Int?
   createdAt        DateTime @default(now())
   
-  // API Key tracking (for pool mode)
-  apiKeyUsed       String?  // Which API key was used
+  // Safe provider identifier used for the request
+  apiKeyUsed       String?
   
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   chatHistory ChatHistory?
@@ -220,39 +221,44 @@ model KnowledgeFile {
 }
 
 // ============================================
-// API KEY POOL MANAGEMENT
+// OPENAI-COMPATIBLE PROVIDERS & PAID MODELS
 // ============================================
 
-model GeminiAPIKey {
-  id                String    @id @default(cuid())
-  userId            String?   // NULL = admin key
-  name              String?   // Optional friendly name for the key
-  apiKey            String    @unique
-  
-  // Status tracking
-  status            String    @default("active") // active, rate_limited, invalid, dead
-  lastUsedAt        DateTime?
-  lastErrorAt       DateTime?
-  lastErrorType     String?   // invalid_key, rate_limit, quota_exceeded, model_error
-  
-  // Daily quota tracking
-  dailyQuotaDate    String?   // YYYY-MM-DD
-  requestsToday     Int       @default(0)
-  
-  // Limits (if known)
-  maxRequestsPerDay Int?      @default(1500) // Default Gemini free tier
-  
-  // Priority (lower = higher priority)
-  priority          Int       @default(100) // Admin keys = 1, User keys = 100
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([status, priority])
+model CustomerLLMProvider {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  name          String    @default("My Provider")
+  baseUrl       String
+  apiKey        String
+  fetchedModels Json?
+  defaultModel  String?
+  status        String    @default("active") // active, invalid, disabled
+  lastFetchedAt DateTime?
+  lastUsedAt    DateTime?
+  lastErrorAt   DateTime?
+  lastError     String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
-  @@index([dailyQuotaDate])
+  @@index([status])
+}
+
+model PaidLLMModel {
+  id              String   @id @default(cuid())
+  modelId         String   @unique
+  displayName     String?
+  enabled         Boolean  @default(false)
+  pricePerRequest Decimal  @default(0) @db.Decimal(10, 2)
+  fetchedRaw      Json?
+  lastFetchedAt   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([modelId])
 }
 
 // ============================================
@@ -306,9 +312,9 @@ model ExtensionSession {
   
   // Answer & Request Settings
   answerMode       String   @default("short") // single, short, medium, long
-  requestMode      String   @default("free_pool") // free_user_key, free_pool, premium
-  provider         String?  // gemini, openrouter (for premium mode)
-  model            String?  // gemini-2.0-flash, gpt-5.1, gemini-2.5-pro, gemini-3.0-pro, etc.
+  requestMode      String   @default("paid_balance") // byok, paid_balance
+  provider         String?  // openai_compatible
+  model            String?  // selected OpenAI-compatible model id
   
   // Status
   isActive         Boolean  @default(true)
@@ -386,10 +392,6 @@ model Voucher {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
   
-  // GenovaAI specific
-  creditBonus             Int?     // Bonus credits when used
-  balanceBonus            Decimal? @db.Decimal(10, 2) // Bonus balance
-  
   voucherUsages      VoucherUsage[]
   creditTransactions CreditTransaction[]
   
@@ -406,8 +408,6 @@ model VoucherUsage {
   voucherId      String
   userId         String
   discountAmount Decimal  @db.Decimal(10, 2)
-  creditsBonus   Int?     // Credits received
-  balanceBonus   Decimal? @db.Decimal(10, 2) // Balance received
   usedAt         DateTime @default(now())
   
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)

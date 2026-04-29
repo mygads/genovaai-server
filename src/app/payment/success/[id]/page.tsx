@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { FaCheckCircle, FaArrowRight, FaCreditCard, FaCoins } from 'react-icons/fa';
+import { FaCheckCircle, FaArrowRight, FaCreditCard } from 'react-icons/fa';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
@@ -13,12 +13,9 @@ export default function PaymentSuccessPage() {
   const [payment, setPayment] = useState<{
     id: string;
     amount: string;
-    paymentMethod: string;
+    method: string;
     status: string;
     createdAt: string;
-  } | null>(null);
-  const [transaction, setTransaction] = useState<{
-    credits: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,30 +26,15 @@ export default function PaymentSuccessPage() {
   async function fetchPaymentDetails() {
     try {
       const token = localStorage.getItem('accessToken');
-      
-      // Fetch payment
       const paymentRes = await fetch(`/api/customer/genovaai/payment/${paymentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
       const paymentData = await paymentRes.json();
-      
+
       if (paymentData.success) {
         setPayment(paymentData.data);
-        
-        // Fetch transaction
-        if (paymentData.data.transactionId) {
-          const transactionRes = await fetch(`/api/customer/genovaai/transactions/${paymentData.data.transactionId}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-          const transactionData = await transactionRes.json();
-          if (transactionData.success) {
-            setTransaction(transactionData.data);
-          }
-        }
       }
     } catch (error) {
       console.error('Error fetching payment details:', error);
@@ -88,7 +70,6 @@ export default function PaymentSuccessPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-8 px-4">
       <div className="max-w-2xl w-full space-y-6">
-        {/* Success Card */}
         <Card>
           <CardContent className="p-8 text-center">
             <div className="flex justify-center mb-4">
@@ -103,18 +84,15 @@ export default function PaymentSuccessPage() {
               Your payment has been processed successfully
             </p>
 
-            {transaction && (
-              <div className="inline-flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-6 py-3 rounded-lg">
-                <FaCoins className="w-5 h-5 text-blue-600" />
-                <span className="text-lg font-bold text-blue-600">
-                  +{transaction.credits} Credits Added
-                </span>
-              </div>
-            )}
+            <div className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-6 py-3 rounded-lg">
+              <FaCreditCard className="w-5 h-5 text-green-600" />
+              <span className="text-lg font-bold text-green-600">
+                Rp {parseFloat(payment.amount).toLocaleString('id-ID')} Balance Added
+              </span>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Payment Details */}
         <Card>
           <CardHeader>
             <CardTitle>Payment Details</CardTitle>
@@ -133,14 +111,8 @@ export default function PaymentSuccessPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Payment Method</span>
-                <span className="font-medium text-gray-900 dark:text-white">{payment.paymentMethod}</span>
+                <span className="font-medium text-gray-900 dark:text-white">{payment.method}</span>
               </div>
-              {transaction && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Credits Received</span>
-                  <span className="font-semibold text-blue-600">{transaction.credits} Credits</span>
-                </div>
-              )}
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Payment Date</span>
                 <span className="text-sm text-gray-600 dark:text-gray-400">
@@ -151,7 +123,6 @@ export default function PaymentSuccessPage() {
           </CardContent>
         </Card>
 
-        {/* Actions */}
         <div className="grid grid-cols-2 gap-4">
           <Link href="/dashboard/balance">
             <Card className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
@@ -168,16 +139,11 @@ export default function PaymentSuccessPage() {
               </CardContent>
             </Card>
           </Link>
-          <Link href="/dashboard">
+          <Link href="/dashboard/settings">
             <Card className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                      <FaCoins className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <span className="font-medium text-gray-900 dark:text-white">Go to Dashboard</span>
-                  </div>
+                  <span className="font-medium text-gray-900 dark:text-white">Manage AI Sessions</span>
                   <FaArrowRight className="w-4 h-4 text-gray-400" />
                 </div>
               </CardContent>
@@ -185,10 +151,9 @@ export default function PaymentSuccessPage() {
           </Link>
         </div>
 
-        {/* Info */}
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <p className="text-sm text-blue-800 dark:text-blue-200">
-            <strong>Thank you for your payment!</strong> Your credits have been added to your account and are ready to use.
+            <strong>Thank you for your payment!</strong> Your balance is ready for paid AI model requests.
           </p>
         </div>
       </div>

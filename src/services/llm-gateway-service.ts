@@ -1,21 +1,20 @@
-import { ApiKeyPoolService } from './apikey-pool-service';
 import { CreditService } from './credit-service';
 import { FileUploadService } from './file-upload-service';
+import { PaidModelService } from './paid-model-service';
+import { ProviderCredentialService } from './provider-credential-service';
 import { prisma } from '../lib/prisma';
 import {
   buildSystemPrompt,
   formatKnowledgeContext,
   formatUserQuestion,
-  getThinkingConfig,
-  getCachingConfig,
 } from '../lib/prompt-templates';
 
 export interface LLMRequest {
   userId: string;
-  sessionId: string; // Extension session ID - all config comes from DB
+  sessionId: string;
   question: string;
-  fewShotExamples?: Array<{question: string; answer: string}>; // Optional few-shot examples
-  outputFormat?: string; // Optional format specification (bulleted, table, json, etc)
+  fewShotExamples?: Array<{ question: string; answer: string }>;
+  outputFormat?: string;
 }
 
 export interface LLMResponse {
@@ -26,45 +25,42 @@ export interface LLMResponse {
   tokensUsed?: number;
   inputTokens?: number;
   outputTokens?: number;
-  creditsDeducted?: number;
-  cached?: boolean; // Whether context was cached
-}
-
-// Context caching configuration
-interface CachingConfig {
-  enabled: boolean;
-  minTokens: number; // Minimum tokens to enable caching
-  ttlSeconds: number; // Cache TTL
-}
-
-// Thinking configuration for Gemini models
-interface ThinkingConfig {
-  // For Gemini 2.5 models
-  thinkingBudget?: number; // 0 to disable, 8192 for default thinking
-  // For Gemini 3 models
-  thinkingLevel?: 'low' | 'high'; // 'low' for faster, 'high' for better reasoning
+  balanceDeducted?: number;
+  cached?: boolean;
 }
 
 interface FullRequest extends LLMRequest {
-  mode: 'free_user_key' | 'free_pool' | 'premium';
+  mode: 'byok' | 'paid_balance';
   provider: string;
   model: string;
   systemPrompt: string;
   knowledgeContext: string | null;
   fileIds: string[];
   answerMode: string;
-  cachingConfig?: CachingConfig;
-  thinkingConfig?: ThinkingConfig;
+}
+
+interface OpenAICompatibleCallParams {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  systemPrompt: string;
+  knowledge: string | null;
+  question: string;
+  fewShotExamples?: Array<{ question: string; answer: string }>;
+  outputFormat?: string;
+}
+
+interface OpenAICompatibleResult {
+  text: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
 }
 
 export class LLMGatewayService {
-  /**
-   * Main gateway method - fetches session config from DB and routes request
-   */
   static async processRequest(request: LLMRequest): Promise<LLMResponse> {
     const startTime = Date.now();
 
-    // Fetch session configuration from database
     const session = await prisma.extensionSession.findFirst({
       where: {
         sessionId: request.sessionId,
@@ -80,19 +76,17 @@ export class LLMGatewayService {
       };
     }
 
-    // Update last used timestamp
     await prisma.extensionSession.update({
       where: { id: session.id },
       data: { lastUsedAt: new Date() },
     });
 
-    // Fetch knowledge files if any are linked
     const manualKnowledge = session.knowledgeContext || null;
     let fileContents: string | null = null;
-    
+
     if (session.knowledgeFileIds && session.knowledgeFileIds.length > 0) {
       const files = await FileUploadService.getFilesByIds(session.knowledgeFileIds, request.userId);
-      
+
       if (files.length > 0) {
         fileContents = files
           .map((file, index) => {
@@ -103,49 +97,39 @@ export class LLMGatewayService {
       }
     }
 
-    // Build system prompt based on session configuration
-    let systemPrompt: string;
-    if (session.useCustomPrompt && session.customSystemPrompt) {
-      // Use custom prompt directly
-      systemPrompt = session.customSystemPrompt;
-    } else {
-      // Generate structured prompt based on answer mode
-      systemPrompt = buildSystemPrompt(
-        session.answerMode as 'single' | 'short' | 'medium' | 'long'
-      );
+    const systemPrompt = session.useCustomPrompt && session.customSystemPrompt
+      ? session.customSystemPrompt
+      : buildSystemPrompt(session.answerMode as 'single' | 'short' | 'medium' | 'long');
+
+    const formattedKnowledge = formatKnowledgeContext(manualKnowledge, fileContents);
+    const mode = this.normalizeMode(session.requestMode);
+    const resolvedModel = await this.resolveModel(request.userId, mode, session.model || undefined);
+
+    if (!resolvedModel) {
+      return {
+        success: false,
+        error: mode === 'byok'
+          ? 'No BYOK model is available. Please add a provider and fetch models first.'
+          : 'No paid model is available. Please contact admin to enable a model.',
+      };
     }
 
-    // Format knowledge context (combines manual context + file contents)
-    const formattedKnowledge = formatKnowledgeContext(manualKnowledge, fileContents);
-    const knowledgeLength = formattedKnowledge.length;
-
-    // Get caching and thinking configurations
-    const model = session.model || 'gemini-2.5-flash';
-    const answerMode = session.answerMode as 'single' | 'short' | 'medium' | 'long';
-    
-    const cachingConfig = getCachingConfig(model, knowledgeLength);
-    const thinkingConfig = this.getThinkingConfig(model);
-
-    // Build full request with session data
     const fullRequest: FullRequest = {
       userId: request.userId,
       sessionId: request.sessionId,
       question: request.question,
       fewShotExamples: request.fewShotExamples,
       outputFormat: request.outputFormat,
-      mode: session.requestMode as 'free_user_key' | 'free_pool' | 'premium',
-      provider: session.provider || 'gemini',
-      model: model,
-      systemPrompt: systemPrompt,
+      mode,
+      provider: 'openai_compatible',
+      model: resolvedModel,
+      systemPrompt,
       knowledgeContext: formattedKnowledge || null,
       fileIds: session.knowledgeFileIds,
       answerMode: session.answerMode,
-      cachingConfig: cachingConfig,
-      thinkingConfig: thinkingConfig,
     };
 
-    // Validate user can make request
-    const canRequest = await CreditService.canMakeRequest(fullRequest.userId, fullRequest.mode);
+    const canRequest = await CreditService.canMakeRequest(fullRequest.userId, fullRequest.mode, fullRequest.model);
     if (!canRequest.allowed) {
       return {
         success: false,
@@ -156,58 +140,81 @@ export class LLMGatewayService {
     let response: LLMResponse;
 
     switch (fullRequest.mode) {
-      case 'free_user_key':
-        response = await this.handleFreeUserKey(fullRequest);
+      case 'byok':
+        response = await this.handleBYOK(fullRequest);
         break;
-      case 'free_pool':
-        response = await this.handleFreePool(fullRequest);
-        break;
-      case 'premium':
-        response = await this.handlePremium(fullRequest);
+      case 'paid_balance':
+        response = await this.handlePaidBalance(fullRequest);
         break;
       default:
         return { success: false, error: 'Invalid mode' };
     }
 
-    // Log request with session context
-    await this.logRequest(fullRequest, response, Date.now() - startTime, session.id);
+    const requestId = await this.logRequest(fullRequest, response, Date.now() - startTime, session.id);
+    if (requestId) {
+      response.requestId = requestId;
+    }
 
     return response;
   }
 
-  /**
-   * Mode 1: Free with user's own API key
-   */
-  private static async handleFreeUserKey(request: FullRequest): Promise<LLMResponse> {
-    // Get user's API key
-    const userKey = await prisma.geminiAPIKey.findFirst({
-      where: {
-        userId: request.userId,
-        status: { in: ['active', 'rate_limited'] },
-      },
-      orderBy: { priority: 'asc' },
-    });
+  private static normalizeMode(mode: string): 'byok' | 'paid_balance' {
+    if (mode === 'byok') return 'byok';
+    return 'paid_balance';
+  }
 
-    if (!userKey) {
-      return { success: false, error: 'No active API key found' };
+  private static async resolveModel(userId: string, mode: 'byok' | 'paid_balance', selectedModel?: string): Promise<string | null> {
+    if (mode === 'byok') {
+      const provider = await prisma.customerLLMProvider.findUnique({ where: { userId } });
+      if (!provider || provider.status !== 'active') return null;
+
+      const modelIds = ProviderCredentialService.extractModelIds(provider.fetchedModels);
+      if (selectedModel && (modelIds.length === 0 || modelIds.includes(selectedModel))) return selectedModel;
+      if (provider.defaultModel && (modelIds.length === 0 || modelIds.includes(provider.defaultModel))) return provider.defaultModel;
+      return modelIds[0] || null;
     }
 
-    // Make request to Gemini
-    try {
-      const result = await this.callGemini(
-        userKey.apiKey,
-        request.model,
-        request.systemPrompt,
-        request.knowledgeContext,
-        request.question,
-        request.cachingConfig,
-        request.thinkingConfig,
-        request.fewShotExamples,
-        request.outputFormat
-      );
+    if (selectedModel) {
+      const paidModel = await PaidModelService.getEnabledModel(selectedModel);
+      if (paidModel) return paidModel.modelId;
+    }
 
-      // Record usage
-      await ApiKeyPoolService.recordUsage(userKey.id);
+    const defaultModel = await PaidModelService.getDefaultEnabledModel();
+    return defaultModel?.modelId || null;
+  }
+
+  private static async handleBYOK(request: FullRequest): Promise<LLMResponse> {
+    const provider = await prisma.customerLLMProvider.findUnique({ where: { userId: request.userId } });
+
+    if (!provider || provider.status !== 'active') {
+      return { success: false, error: 'No active BYOK provider found' };
+    }
+
+    const modelIds = ProviderCredentialService.extractModelIds(provider.fetchedModels);
+    if (modelIds.length > 0 && !modelIds.includes(request.model)) {
+      return { success: false, error: 'Selected BYOK model is not available for your provider' };
+    }
+
+    try {
+      const result = await this.callOpenAICompatible({
+        baseUrl: provider.baseUrl,
+        apiKey: provider.apiKey,
+        model: request.model,
+        systemPrompt: request.systemPrompt,
+        knowledge: request.knowledgeContext,
+        question: request.question,
+        fewShotExamples: request.fewShotExamples,
+        outputFormat: request.outputFormat,
+      });
+
+      await prisma.customerLLMProvider.update({
+        where: { id: provider.id },
+        data: {
+          lastUsedAt: new Date(),
+          lastErrorAt: null,
+          lastError: null,
+        },
+      });
 
       return {
         success: true,
@@ -215,340 +222,160 @@ export class LLMGatewayService {
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,
         tokensUsed: result.totalTokens,
-        cached: request.cachingConfig?.enabled || false,
       };
     } catch (error) {
-      // Handle errors and mark key if needed
-      await this.handleGeminiError(error, userKey.id);
+      const message = error instanceof Error ? error.message : 'Failed to get response from BYOK provider';
+      await prisma.customerLLMProvider.update({
+        where: { id: provider.id },
+        data: {
+          ...(this.isAuthError(message) && { status: 'invalid' }),
+          lastErrorAt: new Date(),
+          lastError: message,
+        },
+      });
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get response from Gemini',
+        error: message,
       };
     }
   }
 
-  /**
-   * Mode 2: Free with API key pool
-   */
-  private static async handleFreePool(request: FullRequest): Promise<LLMResponse> {
-    let attempts = 0;
-    const maxAttempts = 5; // Try up to 5 different keys
-
-    while (attempts < maxAttempts) {
-      // Get next available key
-      const keyInfo = await ApiKeyPoolService.getNextAvailableKey(request.userId);
-
-      if (!keyInfo.key || !keyInfo.keyId) {
-        return {
-          success: false,
-          error: 'No available API keys in pool. Please try again later or use premium mode.',
-        };
-      }
-
-      try {
-        const result = await this.callGemini(
-          keyInfo.key,
-          request.model,
-          request.systemPrompt,
-          request.knowledgeContext,
-          request.question,
-          request.cachingConfig,
-          request.thinkingConfig,
-          request.fewShotExamples,
-          request.outputFormat
-        );
-
-        // Record usage
-        await ApiKeyPoolService.recordUsage(keyInfo.keyId);
-
-        return {
-          success: true,
-          answer: result.text,
-          inputTokens: result.inputTokens,
-          outputTokens: result.outputTokens,
-          tokensUsed: result.totalTokens,
-          cached: request.cachingConfig?.enabled || false,
-        };
-      } catch (error) {
-        // Handle error and try next key
-        await this.handleGeminiError(error, keyInfo.keyId);
-        attempts++;
-
-        // If this was the last attempt, return error
-        if (attempts >= maxAttempts) {
-          return {
-            success: false,
-            error: 'All API keys in pool are unavailable. Please try premium mode.',
-          };
-        }
-
-        // Otherwise, continue to next key
-        continue;
-      }
+  private static async handlePaidBalance(request: FullRequest): Promise<LLMResponse> {
+    const paidModel = await PaidModelService.getEnabledModel(request.model);
+    if (!paidModel) {
+      return { success: false, error: 'Selected paid model is not available' };
     }
 
-    return { success: false, error: 'Max retry attempts reached' };
-  }
-
-  /**
-   * Mode 3: Premium with credits
-   */
-  private static async handlePremium(request: FullRequest): Promise<LLMResponse> {
-    // Deduct credits first (will rollback if request fails)
-    const deducted = await CreditService.deductCredits(
+    const price = Number(paidModel.pricePerRequest);
+    const deducted = await CreditService.deductBalanceForLLM(
       request.userId,
-      1,
-      `Premium LLM request - ${request.model}`
+      price,
+      `LLM usage - ${request.model}`
     );
 
     if (!deducted) {
-      return { success: false, error: 'Failed to deduct credits' };
+      return { success: false, error: 'Insufficient balance. Please top up balance to use this model.' };
     }
 
     try {
-      // Call premium model via OpenRouter
-      const answer = await this.callOpenRouter(
-        request.model,
-        request.systemPrompt,
-        request.knowledgeContext,
-        request.question
-      );
+      const { baseUrl, apiKey } = PaidModelService.getGatewayConfig();
+      const result = await this.callOpenAICompatible({
+        baseUrl,
+        apiKey,
+        model: request.model,
+        systemPrompt: request.systemPrompt,
+        knowledge: request.knowledgeContext,
+        question: request.question,
+        fewShotExamples: request.fewShotExamples,
+        outputFormat: request.outputFormat,
+      });
 
       return {
         success: true,
-        answer,
-        creditsDeducted: 1,
+        answer: result.text,
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
+        tokensUsed: result.totalTokens,
+        balanceDeducted: price,
       };
     } catch (error) {
-      // Refund credits on failure
-      await CreditService.addCredits(
+      await CreditService.refundBalanceForLLM(
         request.userId,
-        1,
-        'Credit refund - request failed',
+        price,
+        `LLM refund - ${request.model}`
       );
 
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get response from premium model',
+        error: error instanceof Error ? error.message : 'Failed to get response from paid gateway',
       };
     }
   }
 
-  /**
-   * Call Gemini API with advanced prompt design and caching
-   */
-  private static async callGemini(
-    apiKey: string,
-    model: string,
-    systemPrompt: string,
-    knowledge: string | null,
-    question: string,
-    cachingConfig?: CachingConfig,
-    thinkingConfig?: ThinkingConfig,
-    fewShotExamples?: Array<{question: string; answer: string}>,
-    outputFormat?: string
-  ): Promise<{ text: string; inputTokens?: number; outputTokens?: number; totalTokens?: number }> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-    // Build structured prompt parts following best practices
-    const parts: Array<{ text: string }> = [];
-    
-    // 1. Knowledge context first (important: context before question for better reasoning)
-    if (knowledge) {
-      parts.push({ text: knowledge });
-    }
-
-    // 2. Format user question with optional few-shot examples and output format
-    const formattedQuestion = formatUserQuestion(question, fewShotExamples, outputFormat);
-    parts.push({ text: formattedQuestion });
-
-    // Generation config with thinking configuration
-    const generationConfig: Record<string, unknown> = {
-      temperature: model.includes('gemini-3') ? 1.0 : 0.7, // Gemini 3 uses default 1.0
-      maxOutputTokens: 2048,
-    };
-
-    // Apply thinking config based on model
-    if (thinkingConfig) {
-      if (model.includes('gemini-3') && thinkingConfig.thinkingLevel) {
-        generationConfig.thinkingConfig = { thinkingLevel: thinkingConfig.thinkingLevel };
-      } else if (model.includes('gemini-2.5') && thinkingConfig.thinkingBudget !== undefined) {
-        generationConfig.thinkingConfig = { thinkingBudget: thinkingConfig.thinkingBudget };
-      }
-    }
-    
-    // Force thinking mode for gemini-2.5-pro (required by model)
-    if (model === 'gemini-2.5-pro' && !generationConfig.thinkingConfig) {
-      generationConfig.thinkingConfig = { thinkingBudget: 8192 };
-    }
-
-    // System instruction (role, instructions, constraints, output format)
-    const systemInstruction: Record<string, unknown> = { parts: [{ text: systemPrompt }] };
-    
-    // Note: Context caching requires separate API call to create cached content first
-    // Disabled inline caching to prevent "Unknown name cachedContent" error
-    // TODO: Implement proper Context Caching API flow if needed
-    // Reference: https://ai.google.dev/gemini-api/docs/caching
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction,
-        contents: [{ parts }],
-        generationConfig,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || 'Gemini API error');
-    }
-
-    const data = await response.json();
-    const text = data.candidates[0].content.parts[0].text;
-    
-    // Extract token usage if available
-    const usageMetadata = data.usageMetadata;
-    const tokenInfo = {
-      text,
-      inputTokens: usageMetadata?.promptTokenCount,
-      outputTokens: usageMetadata?.candidatesTokenCount,
-      totalTokens: usageMetadata?.totalTokenCount,
-    };
-    
-    return tokenInfo;
-  }
-
-  /**
-   * Call OpenRouter API (premium models)
-   */
-  private static async callOpenRouter(
-    model: string,
-    systemPrompt: string,
-    knowledge: string | null,
-    question: string
-  ): Promise<string> {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      throw new Error('OpenRouter API key not configured');
-    }
-
-    const messages: Array<{ role: string; content: string }> = [
-      { role: 'system', content: systemPrompt },
+  private static async callOpenAICompatible(params: OpenAICompatibleCallParams): Promise<OpenAICompatibleResult> {
+    const baseUrl = ProviderCredentialService.normalizeBaseUrl(params.baseUrl);
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: params.systemPrompt },
     ];
 
-    if (knowledge) {
-      messages.push({ role: 'system', content: `Knowledge Base:\n${knowledge}` });
+    if (params.knowledge) {
+      messages.push({ role: 'system', content: `Knowledge Base:\n${params.knowledge}` });
     }
 
-    messages.push({ role: 'user', content: question });
+    if (params.fewShotExamples) {
+      for (const example of params.fewShotExamples) {
+        messages.push({ role: 'user', content: example.question });
+        messages.push({ role: 'assistant', content: example.answer });
+      }
+    }
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.APP_URL || 'https://genova.genfity.com',
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.7,
-        max_tokens: 2048,
-      }),
+    messages.push({
+      role: 'user',
+      content: formatUserQuestion(params.question, undefined, params.outputFormat),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || 'OpenRouter API error');
+    let data: any = null;
+    let lastError = 'OpenAI-compatible provider error';
+
+    for (const endpoint of ProviderCredentialService.endpointCandidates(baseUrl, '/chat/completions')) {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${params.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: params.model,
+          messages,
+          temperature: 0.7,
+          max_tokens: 2048,
+        }),
+      });
+
+      if (!response.ok) {
+        lastError = await ProviderCredentialService.parseProviderError(response, 'OpenAI-compatible provider error');
+        if (response.status === 404) continue;
+        throw new Error(lastError);
+      }
+
+      data = await response.json();
+      break;
     }
 
-    const data = await response.json();
-    return data.choices[0].message.content;
-  }
-
-  /**
-   * Handle Gemini API errors
-   */
-  private static async handleGeminiError(error: unknown, keyId: string): Promise<void> {
-    const errorMessage = error instanceof Error ? error.message.toLowerCase() : '';
-
-    if (errorMessage.includes('invalid api key') || errorMessage.includes('api_key_invalid')) {
-      await ApiKeyPoolService.markKeyAsFailed(keyId, 'invalid_key');
-    } else if (errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
-      await ApiKeyPoolService.markKeyAsFailed(keyId, 'rate_limit');
-    } else if (errorMessage.includes('model')) {
-      await ApiKeyPoolService.markKeyAsFailed(keyId, 'model_error');
+    if (!data) {
+      throw new Error(lastError);
     }
-  }
+    const text = data?.choices?.[0]?.message?.content;
 
-  /**
-   * Get caching configuration based on model and context size
-   */
-  private static getCachingConfig(model: string, knowledgeContext: string | null): CachingConfig | undefined {
-    if (!knowledgeContext) return undefined;
+    if (typeof text !== 'string') {
+      throw new Error('Provider response did not include message content');
+    }
 
-    const estimatedTokens = Math.floor(knowledgeContext.length / 4);
-    
-    // Minimum token limits for caching (from documentation)
-    const minTokensByModel: Record<string, number> = {
-      'gemini-3-pro-preview': 2048,
-      'gemini-3-pro-image-preview': 2048,
-      'gemini-2.5-pro': 4096,
-      'gemini-2.5-flash': 1024,
-      'gemini-2.5-flash-lite': 1024,
-      'gemini-2.0-flash-exp': 1024,
-      'gemini-1.5-pro': 4096,
-      'gemini-1.5-flash': 1024,
+    return {
+      text,
+      inputTokens: data?.usage?.prompt_tokens,
+      outputTokens: data?.usage?.completion_tokens,
+      totalTokens: data?.usage?.total_tokens,
     };
-
-    const minTokens = minTokensByModel[model] || 2048;
-
-    // Enable caching if context is large enough
-    if (estimatedTokens >= minTokens) {
-      return {
-        enabled: true,
-        minTokens,
-        ttlSeconds: 3600, // 1 hour TTL
-      };
-    }
-
-    return undefined;
   }
 
-  /**
-   * Get thinking configuration based on model
-   */
-  private static getThinkingConfig(model: string): ThinkingConfig | undefined {
-    // Gemini 3 models use thinkingLevel
-    if (model.includes('gemini-3')) {
-      return {
-        thinkingLevel: 'high', // Default to high for better reasoning
-      };
-    }
-
-    // Gemini 2.5 models use thinkingBudget
-    if (model.includes('gemini-2.5')) {
-      return {
-        thinkingBudget: 8192, // Enable thinking by default
-      };
-    }
-
-    // Other models don't support thinking
-    return undefined;
+  private static isAuthError(message: string): boolean {
+    const normalized = message.toLowerCase();
+    return normalized.includes('401') || normalized.includes('403') || normalized.includes('unauthorized') || normalized.includes('forbidden') || normalized.includes('invalid api key');
   }
 
-  /**
-   * Log LLM request with session context
-   */
   private static async logRequest(
     request: FullRequest,
     response: LLMResponse,
     durationMs: number,
     sessionDbId: string
-  ): Promise<void> {
+  ): Promise<string | null> {
     try {
+      const apiKeyUsed = request.mode === 'byok'
+        ? `customer_provider:${request.userId}`
+        : 'paid_gateway';
+
       const llmRequest = await prisma.lLMRequest.create({
         data: {
           userId: request.userId,
@@ -565,31 +392,33 @@ export class LLMGatewayService {
           inputTokens: response.inputTokens || null,
           outputTokens: response.outputTokens || null,
           totalTokens: response.tokensUsed || null,
-          costCredits: response.creditsDeducted || 0,
+          costCredits: 0,
+          costBalance: response.balanceDeducted || 0,
           responseTimeMs: durationMs,
+          apiKeyUsed,
         },
       });
 
-      // Create chat history for both success and error, linking to session
-      // This allows users to see all their requests including errors
       await prisma.chatHistory.create({
         data: {
           userId: request.userId,
-          sessionId: sessionDbId, // Use database ID, not sessionId string
+          sessionId: sessionDbId,
           llmRequestId: llmRequest.id,
           question: request.question,
-          answer: response.success && response.answer 
-            ? response.answer 
+          answer: response.success && response.answer
+            ? response.answer
             : `[Error] ${response.error || 'Request failed'}`,
-          answerMode: request.answerMode, // Captured from session at time of request
-          // Save detailed context
-          userPrompt: request.question, // User's original question
-          systemPrompt: request.systemPrompt, // System prompt used
-          knowledgeContext: request.knowledgeContext, // Knowledge text if any
+          answerMode: request.answerMode,
+          userPrompt: request.question,
+          systemPrompt: request.systemPrompt,
+          knowledgeContext: request.knowledgeContext,
         },
       });
+
+      return llmRequest.id;
     } catch (error) {
       console.error('Failed to log LLM request:', error);
+      return null;
     }
   }
 }

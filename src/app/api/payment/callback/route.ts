@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@/generated/prisma';
 import { DuitkuService } from '@/services/duitku-service';
-import { CreditService } from '@/services/credit-service';
-import { VoucherService } from '@/services/voucher-service';
 import { prisma } from '@/lib/prisma';
+
+interface PaymentMetadata {
+  voucherId?: string | null;
+  voucherCode?: string | null;
+  discount?: number;
+  originalAmount?: number;
+}
 
 /**
  * POST /api/payment/callback
@@ -11,7 +17,7 @@ import { prisma } from '@/lib/prisma';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     const {
       merchantCode,
       amount,
@@ -22,7 +28,6 @@ export async function POST(request: NextRequest) {
 
     console.log('Payment callback received:', { merchantOrderId, resultCode });
 
-    // Verify signature
     const isValid = DuitkuService.verifyCallback(
       merchantCode,
       amount,
@@ -38,7 +43,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get payment by externalId (merchantOrderId)
     const payment = await prisma.payment.findFirst({
       where: { externalId: merchantOrderId },
       include: {
@@ -60,78 +64,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if already processed
     if (payment.status === 'completed') {
       console.log('Payment already processed:', merchantOrderId);
       return NextResponse.json({ success: true, message: 'Already processed' });
     }
 
-    // Process payment based on result code
     if (resultCode === '00') {
-      // Payment successful
       await prisma.$transaction(async (tx) => {
-        // Update payment status
-        await tx.payment.update({
-          where: { id: payment.id },
+        const updatedPayment = await tx.payment.updateMany({
+          where: {
+            id: payment.id,
+            status: { not: 'completed' },
+          },
           data: {
             status: 'completed',
             paymentDate: new Date(),
           },
         });
 
-        // Get voucher metadata from gatewayResponse if exists
-        const metadata = payment.gatewayResponse as any;
+        if (updatedPayment.count === 0) return;
+
+        const metadata = payment.gatewayResponse as PaymentMetadata | null;
         const voucherId = metadata?.voucherId || null;
         const voucherCode = metadata?.voucherCode || null;
-        const creditBonus = metadata?.creditBonus || 0;
-        const balanceBonus = metadata?.balanceBonus || 0;
         const discountAmount = metadata?.discount || 0;
 
-        // Add balance or credits
         if (payment.type === 'balance') {
-          // Add main balance
-          await CreditService.addBalance(
-            payment.userId,
-            Number(payment.amount),
-            'Balance top-up via Duitku',
-            payment.id
-          );
-
-          // Apply balance bonus from voucher if any
-          if (balanceBonus > 0) {
-            await CreditService.addBalance(
-              payment.userId,
-              balanceBonus,
-              `Voucher balance bonus (${voucherCode})`
-            );
-          }
-        } else if (payment.type === 'credit') {
-          const creditAmount = payment.creditAmount || 0;
-          
-          // Add main credits
-          await CreditService.addCredits(
-            payment.userId,
-            creditAmount,
-            'Credit purchase via Duitku',
-            payment.id
-          );
-
-          // Apply credit bonus from voucher if any
-          if (creditBonus > 0) {
-            await CreditService.addCredits(
-              payment.userId,
-              creditBonus,
-              `Voucher credit bonus (${voucherCode})`
-            );
-          }
+          const topUpAmount = new Prisma.Decimal(metadata?.originalAmount ?? Number(payment.amount));
+          await tx.user.update({
+            where: { id: payment.userId },
+            data: { balance: { increment: topUpAmount } },
+          });
+          await tx.creditTransaction.create({
+            data: {
+              userId: payment.userId,
+              type: 'balance_topup',
+              amount: topUpAmount,
+              credits: 0,
+              description: 'Balance top-up via Duitku',
+              paymentId: payment.id,
+              status: 'completed',
+            },
+          });
         }
 
-        // Record voucher usage if voucher was applied
         if (voucherId && voucherCode) {
-          // Check if voucher usage already exists (prevent duplicate)
           const existingUsage = await tx.voucherUsage.findFirst({
             where: {
-              voucherId: voucherId,
+              voucherId,
               userId: payment.userId,
             },
           });
@@ -139,15 +119,12 @@ export async function POST(request: NextRequest) {
           if (!existingUsage) {
             await tx.voucherUsage.create({
               data: {
-                voucherId: voucherId,
+                voucherId,
                 userId: payment.userId,
-                discountAmount: discountAmount,
-                creditsBonus: creditBonus || null,
-                balanceBonus: balanceBonus || null,
+                discountAmount,
               },
             });
 
-            // Increment voucher usage count
             await tx.voucher.update({
               where: { id: voucherId },
               data: {
@@ -160,9 +137,11 @@ export async function POST(request: NextRequest) {
 
       console.log('Payment completed successfully:', merchantOrderId);
     } else {
-      // Payment failed or cancelled
-      await prisma.payment.update({
-        where: { id: payment.id },
+      await prisma.payment.updateMany({
+        where: {
+          id: payment.id,
+          status: { not: 'completed' },
+        },
         data: { status: 'failed' },
       });
 
@@ -170,15 +149,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-
   } catch (error) {
     console.error('Payment callback error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
-

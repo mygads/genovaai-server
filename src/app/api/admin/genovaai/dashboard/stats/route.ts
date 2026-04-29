@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyAccessToken, isAdminRole } from '@/lib/auth-genovaai';
 
 /**
  * GET /api/admin/genovaai/dashboard/stats
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const token = authHeader.substring(7);
     const payload = await verifyAccessToken(token);
 
-    if (!payload || !payload.userId || payload.role !== 'admin') {
+    if (!payload || !payload.userId || !isAdminRole(payload.role)) {
       return NextResponse.json({
         success: false,
         error: 'Admin access required',
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       successfulRequests,
       totalPayments,
       activeVouchers,
-      apiKeysCount,
+      paidModelsCount,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { isActive: true } }),
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
         _sum: { amount: true },
       }),
       prisma.voucher.count({ where: { isActive: true } }),
-      prisma.geminiAPIKey.count({ where: { status: 'active' } }),
+      prisma.paidLLMModel.count({ where: { enabled: true } }),
     ]);
 
     const successRate = totalRequests > 0 
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       successRate,
       totalRevenue: totalPayments._sum.amount?.toString() || '0',
       activeVouchers,
-      apiKeysCount,
+      paidModelsCount,
     };
 
     return NextResponse.json({

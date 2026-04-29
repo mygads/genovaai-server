@@ -6,9 +6,8 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const createPaymentSchema = z.object({
-  type: z.enum(['balance', 'credit']),
+  type: z.literal('balance'),
   amount: z.number().min(10000, 'Minimum amount is Rp 10,000'),
-  credits: z.number().optional(), // For credit purchase
   paymentMethod: z.string(),
   voucherCode: z.string().optional(),
 });
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { type, amount, credits, paymentMethod, voucherCode } = validation.data;
+    const { type, amount, paymentMethod, voucherCode } = validation.data;
 
     // Get user details
     const user = await prisma.user.findUnique({
@@ -63,8 +62,6 @@ export async function POST(request: NextRequest) {
     let finalAmount = amount;
     let discountAmount = 0;
     let voucherId: string | null = null;
-    let creditBonus = 0;
-    let balanceBonus = 0;
 
     // Apply voucher if provided
     if (voucherCode) {
@@ -84,8 +81,6 @@ export async function POST(request: NextRequest) {
 
       voucherId = voucherValidation.voucher.id;
       discountAmount = voucherValidation.discountAmount || 0;
-      creditBonus = voucherValidation.creditBonus || 0;
-      balanceBonus = voucherValidation.balanceBonus || 0;
       finalAmount = amount - discountAmount;
     }
 
@@ -98,9 +93,7 @@ export async function POST(request: NextRequest) {
       customerName: user.name || 'Customer',
       customerEmail: user.email,
       customerPhone: user.phone || '628123456789',
-      productDetails: type === 'credit' 
-        ? `GenovaAI Credits - ${credits} credits` 
-        : `GenovaAI Balance Top-up - Rp ${amount.toLocaleString('id-ID')}`,
+      productDetails: `GenovaAI Balance Top-up - Rp ${amount.toLocaleString('id-ID')}`,
       expiryPeriod: 120, // 2 hours
     });
 
@@ -124,8 +117,14 @@ export async function POST(request: NextRequest) {
         paymentUrl: duitkuPayment.paymentUrl,
         reference: duitkuPayment.reference,
         gatewayProvider: 'duitku',
-        gatewayResponse: duitkuPayment as any,
-        creditAmount: type === 'credit' ? credits : null,
+        gatewayResponse: {
+          ...(duitkuPayment as any),
+          voucherCode: voucherCode || null,
+          voucherId,
+          discount: discountAmount,
+          originalAmount: amount,
+        },
+        creditAmount: null,
       },
     });
 
@@ -133,8 +132,6 @@ export async function POST(request: NextRequest) {
     const metadata: any = {
       originalAmount: amount,
       discountAmount,
-      creditBonus,
-      balanceBonus,
       voucherId,
     };
 
@@ -148,8 +145,6 @@ export async function POST(request: NextRequest) {
         amount: finalAmount,
         originalAmount: amount,
         discountAmount,
-        creditBonus,
-        balanceBonus,
         expiresAt: payment.expiresAt,
         metadata,
       },
@@ -161,8 +156,6 @@ export async function POST(request: NextRequest) {
       { success: false, error: 'Internal server error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 

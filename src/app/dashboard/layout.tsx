@@ -164,17 +164,11 @@ export default function DashboardLayout({
                   </p>
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 text-center">
-                  <p className="text-xs text-blue-600 dark:text-blue-400">Credits</p>
-                  <p className="text-sm font-bold text-blue-900 dark:text-blue-300">{user.credits}</p>
-                </div>
-                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
-                  <p className="text-xs text-green-600 dark:text-green-400">Balance</p>
-                  <p className="text-xs font-bold text-green-900 dark:text-green-300">
-                    Rp {parseFloat(user.balance).toLocaleString('id-ID', { maximumFractionDigits: 0 })}
-                  </p>
-                </div>
+              <div className="mt-3 bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
+                <p className="text-xs text-green-600 dark:text-green-400">Balance</p>
+                <p className="text-xs font-bold text-green-900 dark:text-green-300">
+                  Rp {parseFloat(user.balance).toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+                </p>
               </div>
             </div>
           )}

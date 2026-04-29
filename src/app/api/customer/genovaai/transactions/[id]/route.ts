@@ -39,7 +39,5 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching transaction:', error);
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }

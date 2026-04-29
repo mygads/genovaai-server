@@ -138,8 +138,6 @@ export async function POST(request: NextRequest) {
         discountType: voucher.discountType,
         value: voucher.value,
         discountAmount,
-        creditBonus: voucher.creditBonus || 0,
-        balanceBonus: voucher.balanceBonus ? parseFloat(voucher.balanceBonus.toString()) : 0,
         finalAmount: parseFloat(amount) - discountAmount,
       },
     });

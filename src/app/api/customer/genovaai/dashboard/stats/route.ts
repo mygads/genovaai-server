@@ -45,9 +45,8 @@ export async function GET() {
       successfulRequests,
       failedRequests,
       thisMonthRequests,
-      freePoolRequests,
-      freeUserKeyRequests,
-      premiumRequests,
+      byokRequests,
+      paidBalanceRequests,
     ] = await Promise.all([
       prisma.lLMRequest.count({
         where: { userId },
@@ -56,7 +55,7 @@ export async function GET() {
         where: { userId, status: 'success' },
       }),
       prisma.lLMRequest.count({
-        where: { userId, status: 'error' },
+        where: { userId, status: 'failed' },
       }),
       prisma.lLMRequest.count({
         where: {
@@ -65,13 +64,10 @@ export async function GET() {
         },
       }),
       prisma.lLMRequest.count({
-        where: { userId, requestMode: 'free_pool' },
+        where: { userId, requestMode: 'byok' },
       }),
       prisma.lLMRequest.count({
-        where: { userId, requestMode: 'free_user_key' },
-      }),
-      prisma.lLMRequest.count({
-        where: { userId, requestMode: 'premium' },
+        where: { userId, requestMode: 'paid_balance' },
       }),
     ]);
 
@@ -135,23 +131,17 @@ export async function GET() {
         provider: true,
         model: true,
         status: true,
-        costCredits: true,
+        costBalance: true,
         createdAt: true,
       },
     });
 
-    // Get API key statistics
-    const [activeApiKeys, totalApiKeys] = await Promise.all([
-      prisma.geminiAPIKey.count({
-        where: {
-          userId,
-          status: 'active',
-        },
-      }),
-      prisma.geminiAPIKey.count({
-        where: { userId },
-      }),
-    ]);
+    const byokProvider = await prisma.customerLLMProvider.findUnique({
+      where: { userId },
+      select: { status: true },
+    });
+    const activeApiKeys = byokProvider?.status === 'active' ? 1 : 0;
+    const totalApiKeys = byokProvider ? 1 : 0;
 
     // Construct comprehensive stats response
     const stats = {
@@ -166,9 +156,8 @@ export async function GET() {
       successfulRequests,
       failedRequests,
       thisMonthRequests,
-      freePoolRequests,
-      freeUserKeyRequests,
-      premiumRequests,
+      byokRequests,
+      paidBalanceRequests,
 
       // Session statistics
       activeSessions,

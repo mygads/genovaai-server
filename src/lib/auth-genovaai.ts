@@ -12,6 +12,10 @@ export interface TokenPayload {
   sessionId: string;
 }
 
+export function isAdminRole(role?: string | null): boolean {
+  return role === 'admin' || role === 'super_admin';
+}
+
 /**
  * Generate Access Token (long-lived: 7 days)
  */

@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { 
-  hashPassword, 
-  generateAccessToken, 
-  generateRefreshToken, 
-  createUserSession,
-  generateDeviceFingerprint 
-} from '@/lib/auth-genovaai';
+import { hashPassword } from '@/lib/auth-genovaai';
+import { EmailService } from '@/services/email-service';
+import { randomBytes } from 'crypto';
 import { z } from 'zod';
 
 const registerSchema = z.object({
@@ -55,10 +51,9 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
     
-    // Hash password
     const hashedPassword = await hashPassword(password);
-    
-    // Create user (no initial bonus)
+    const emailVerificationToken = randomBytes(32).toString('hex');
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -70,6 +65,7 @@ export async function POST(request: NextRequest) {
         balance: 0,
         subscriptionStatus: 'free',
         isActive: true,
+        emailVerificationToken,
       },
       select: {
         id: true,
@@ -83,51 +79,21 @@ export async function POST(request: NextRequest) {
         createdAt: true,
       },
     });
-    
-    // Get user agent and IP
-    const userAgent = request.headers.get('user-agent') || 'unknown';
-    const ip = request.headers.get('x-forwarded-for') || 
-               request.headers.get('x-real-ip') || 
-               'unknown';
-    const deviceInfo = generateDeviceFingerprint(userAgent, ip);
-    
-    // Create session first with temporary token
-    const tempSession = await prisma.userSession.create({
-      data: {
-        userId: user.id,
-        token: 'temp', // Temporary, will be updated
-        deviceInfo,
-        ipAddress: ip,
-        userAgent,
-        isActive: true,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      },
-    });
-    
-    // Generate tokens with correct sessionId
-    const tokenPayload = {
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      sessionId: tempSession.id,
-    };
-    
-    const accessToken = await generateAccessToken(tokenPayload);
-    const refreshToken = await generateRefreshToken(tokenPayload);
-    
-    // Update session with actual refresh token
-    await prisma.userSession.update({
-      where: { id: tempSession.id },
-      data: { token: refreshToken },
-    });
-    
-    console.log('✅ Registration successful for user:', user.email);
-    console.log('🔑 Session created:', tempSession.id);
-    
-    // Return success response
+
+    try {
+      await EmailService.sendVerificationEmail(user.email, user.name, emailVerificationToken);
+    } catch (emailError) {
+      await prisma.user.delete({ where: { id: user.id } });
+      console.error('Verification email error:', emailError);
+      return NextResponse.json({
+        success: false,
+        error: 'Unable to send verification email. Please try again later.',
+      }, { status: 503 });
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Registration successful',
+      message: 'Registration successful. Please check your email to confirm your account.',
       data: {
         user: {
           id: user.id,
@@ -139,9 +105,6 @@ export async function POST(request: NextRequest) {
           balance: user.balance.toString(),
           subscriptionStatus: user.subscriptionStatus,
         },
-        accessToken,
-        refreshToken,
-        expiresIn: 604800, // 7 days in seconds
       },
     }, { status: 201 });
     

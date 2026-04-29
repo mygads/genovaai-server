@@ -6,8 +6,6 @@ export interface VoucherValidation {
   error?: string;
   voucher?: any;
   discountAmount?: number;
-  creditBonus?: number;
-  balanceBonus?: number;
 }
 
 export class VoucherService {
@@ -92,8 +90,6 @@ export class VoucherService {
       valid: true,
       voucher,
       discountAmount,
-      creditBonus: voucher.creditBonus || 0,
-      balanceBonus: Number(voucher.balanceBonus || 0),
     };
   }
 
@@ -103,9 +99,7 @@ export class VoucherService {
   static async applyVoucher(
     voucherId: string,
     userId: string,
-    discountAmount: number,
-    creditsBonus?: number,
-    balanceBonus?: number
+    discountAmount: number
   ): Promise<boolean> {
     try {
       await prisma.$transaction(async (tx) => {
@@ -121,8 +115,6 @@ export class VoucherService {
             voucherId,
             userId,
             discountAmount,
-            creditsBonus: creditsBonus || null,
-            balanceBonus: balanceBonus || null,
           },
         });
       });
@@ -182,8 +174,6 @@ export class VoucherService {
         value: true,
         minAmount: true,
         maxDiscount: true,
-        creditBonus: true,
-        balanceBonus: true,
         startDate: true,
         endDate: true,
       },

@@ -103,6 +103,6 @@ export const ErrorCodes = {
   ACCOUNT_INACTIVE: 'ACCOUNT_INACTIVE',
   
   // External service errors
-  GEMINI_API_ERROR: 'GEMINI_API_ERROR',
+  LLM_PROVIDER_ERROR: 'LLM_PROVIDER_ERROR',
   DUITKU_API_ERROR: 'DUITKU_API_ERROR',
 } as const;

@@ -21,13 +21,13 @@ async function seedGenovaAI() {
       role: 'customer',
       emailVerified: new Date(),
       phoneVerified: new Date(),
-      credits: 10,
+      credits: 0,
       balance: 50000,
       subscriptionStatus: 'free',
     },
   });
 
-  const testAdmin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'admin@genovaai.test' },
     update: {},
     create: {
@@ -43,31 +43,55 @@ async function seedGenovaAI() {
     },
   });
 
+  await prisma.user.upsert({
+    where: { email: 'superadmin@genovaai.test' },
+    update: {},
+    create: {
+      email: 'superadmin@genovaai.test',
+      phone: '628987654322',
+      password: hashedPassword,
+      name: 'Test Super Admin',
+      role: 'super_admin',
+      emailVerified: new Date(),
+      phoneVerified: new Date(),
+      credits: 1000,
+      balance: 1000000,
+    },
+  });
+
   console.log('✅ Test users created');
   console.log(`   - Customer: customer@genovaai.test`);
   console.log(`   - Admin: admin@genovaai.test`);
+  console.log(`   - Super Admin: superadmin@genovaai.test`);
   console.log(`   - Password: Test123!@#`);
 
-  // 2. Create admin Gemini API keys (default pool)
-  await prisma.geminiAPIKey.createMany({
-    data: [
-      {
-        userId: testAdmin.id,
-        apiKey: 'ADMIN_KEY_1_PLACEHOLDER_REPLACE_WITH_REAL_KEY',
-        status: 'active',
-        priority: 1,
-      },
-      {
-        userId: testAdmin.id,
-        apiKey: 'ADMIN_KEY_2_PLACEHOLDER_REPLACE_WITH_REAL_KEY',
-        status: 'active',
-        priority: 2,
-      },
-    ],
-    skipDuplicates: true,
+  await prisma.paidLLMModel.upsert({
+    where: { modelId: 'gpt-4o-mini' },
+    update: {
+      enabled: true,
+      pricePerRequest: 100,
+      displayName: 'GPT-4o Mini',
+    },
+    create: {
+      modelId: 'gpt-4o-mini',
+      displayName: 'GPT-4o Mini',
+      enabled: true,
+      pricePerRequest: 100,
+    },
   });
 
-  console.log('✅ Admin API keys created (placeholders - replace with real keys)');
+  await prisma.paidLLMModel.upsert({
+    where: { modelId: 'gpt-4o' },
+    update: {},
+    create: {
+      modelId: 'gpt-4o',
+      displayName: 'GPT-4o',
+      enabled: false,
+      pricePerRequest: 500,
+    },
+  });
+
+  console.log('✅ Paid model seed created');
 
   // 3. Create system prompt templates (untuk custom user prompts)
   await prisma.systemPrompt.createMany({
@@ -123,36 +147,9 @@ async function seedGenovaAI() {
 
   console.log('✅ System prompt templates created (5 templates: 4 public + 1 custom user)');
 
-  // 4. Create test vouchers
+  // 4. Create test discount vouchers
   await prisma.voucher.createMany({
     data: [
-      {
-        code: 'NEWUSERPRAK',
-        name: 'New User Premium Bonus',
-        description: '5 kredit premium GRATIS untuk user baru! Daftar sekarang dan langsung pakai.',
-        type: 'credit',
-        discountType: 'fixed',
-        value: 0,
-        creditBonus: 5,
-        maxUses: 10000,
-        allowMultipleUsePerUser: false, // Only once per user
-        isActive: true,
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
-      },
-      {
-        code: 'WELCOME10',
-        name: 'Welcome Bonus',
-        description: '10 credits bonus untuk user baru',
-        type: 'credit',
-        discountType: 'fixed',
-        value: 0,
-        creditBonus: 10,
-        maxUses: 1000,
-        isActive: true,
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days
-      },
       {
         code: 'TOPUP50K',
         name: 'Top-up Discount 50%',
@@ -165,76 +162,16 @@ async function seedGenovaAI() {
         maxUses: 100,
         isActive: true,
         startDate: new Date(),
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-      },
-      {
-        code: 'CREDIT20',
-        name: 'Credit Bonus 20',
-        description: '20 credits gratis untuk pembelian credit',
-        type: 'credit',
-        discountType: 'fixed',
-        value: 0,
-        creditBonus: 20,
-        balanceBonus: 0,
-        maxUses: 100,
-        allowMultipleUsePerUser: false,
-        isActive: true,
-        startDate: new Date(),
-      },
-      {
-        code: 'BALANCE10K',
-        name: 'Balance Bonus 10K',
-        description: 'Bonus Rp 10.000 untuk top-up balance',
-        type: 'balance',
-        discountType: 'fixed',
-        value: 0,
-        balanceBonus: 10000,
-        minAmount: 50000,
-        maxUses: 100,
-        isActive: true,
-        startDate: new Date(),
-      },
-      {
-        code: 'CREDITFIRST',
-        name: 'First Credit 30% Off',
-        description: 'Diskon 30% pembelian credit pertama',
-        type: 'credit',
-        discountType: 'percentage',
-        value: 30,
-        minAmount: 100000,
-        maxDiscount: 50000,
-        maxUses: 100,
-        allowMultipleUsePerUser: false,
-        isActive: true,
-        startDate: new Date(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     ],
     skipDuplicates: true,
   });
 
-  console.log('✅ Test vouchers created (6 vouchers)');
-  console.log(`   - NEWUSERPRAK: 5 credit bonus for new users (credit) - SPECIAL PROMO!`);
-  console.log(`   - WELCOME10: 10 credit bonus (credit)`);
-  console.log(`   - TOPUP50K: 50% balance discount (balance)`);
-  console.log(`   - CREDIT20: 20 credit bonus (credit)`);
-  console.log(`   - BALANCE10K: Rp 10K balance bonus (balance)`);
-  console.log(`   - CREDITFIRST: 30% credit discount (credit)`);
+  console.log('✅ Test discount voucher created');
+  console.log(`   - TOPUP50K: 50% balance top-up discount`);
 
-  // 5. Give welcome bonus to test customer
-  await prisma.creditTransaction.create({
-    data: {
-      userId: testCustomer.id,
-      type: 'welcome_bonus',
-      amount: 0,
-      credits: 10,
-      description: 'Welcome bonus - 10 free credits',
-      status: 'completed',
-    },
-  });
-
-  console.log('✅ Welcome bonus transaction logged');
-
-  // 6. Create test extension sessions for customer
+  // 5. Create test extension sessions for customer
   const session1 = await prisma.extensionSession.create({
     data: {
       userId: testCustomer.id,
@@ -242,9 +179,9 @@ async function seedGenovaAI() {
       sessionName: 'Quiz Session - Biology',
       systemPrompt: 'You are a helpful quiz assistant. Answer questions accurately.',
       answerMode: 'medium',
-      requestMode: 'free_pool',
-      provider: 'gemini',
-      model: 'gemini-2.5-flash',
+      requestMode: 'paid_balance',
+      provider: 'openai_compatible',
+      model: 'gpt-4o-mini',
       knowledgeContext: 'Materi: Fotosintesis adalah proses pembuatan makanan pada tumbuhan menggunakan sinar matahari, air, dan CO2.',
       isActive: true,
     },
@@ -259,32 +196,32 @@ async function seedGenovaAI() {
       customSystemPrompt: 'Kamu adalah guru matematika. Jelaskan setiap langkah dengan detail menggunakan Bahasa Indonesia. Gunakan contoh yang mudah dipahami.',
       useCustomPrompt: true,
       answerMode: 'long', // Tidak akan digunakan karena custom prompt aktif
-      requestMode: 'free_user_key',
-      provider: 'gemini',
-      model: 'gemini-2.5-flash',
+      requestMode: 'paid_balance',
+      provider: 'openai_compatible',
+      model: 'gpt-4o-mini',
       isActive: true,
     },
   });
 
-  const session3 = await prisma.extensionSession.create({
+  await prisma.extensionSession.create({
     data: {
       userId: testCustomer.id,
-      sessionId: `sess_premium_${Date.now() + 2}`,
-      sessionName: 'Premium Session - English Essay',
+      sessionId: `sess_paid_balance_${Date.now() + 2}`,
+      sessionName: 'Paid Balance Session - English Essay',
       systemPrompt: 'You are a helpful quiz assistant.',
       answerMode: 'long',
-      requestMode: 'premium',
-      provider: 'gemini',
-      model: 'gemini-3-pro-preview',
+      requestMode: 'paid_balance',
+      provider: 'openai_compatible',
+      model: 'gpt-4o-mini',
       knowledgeContext: 'Essay topic: The impact of social media on modern society.',
       isActive: true,
     },
   });
 
-  console.log('✅ Test extension sessions created (3 sessions)');
-  console.log(`   - Session 1: Quiz Biology (medium mode, free_pool)`);
-  console.log(`   - Session 2: Math Custom Prompt (useCustomPrompt=true, free_user_key)`);
-  console.log(`   - Session 3: Premium English Essay (long mode, premium with Gemini 3)`);
+  console.log('✅ Test extension sessions created (3 paid balance sessions)');
+  console.log(`   - Session 1: Quiz Biology (medium mode, paid_balance)`);
+  console.log(`   - Session 2: Math Custom Prompt (useCustomPrompt=true, paid_balance)`);
+  console.log(`   - Session 3: English Essay (long mode, paid_balance)`);
 
   // 7. Create test knowledge files
   await prisma.knowledgeFile.createMany({
@@ -344,28 +281,22 @@ Faktor yang mempengaruhi:
 
   console.log('\n✨ GenovaAI seeding completed successfully!');
   console.log('\n📊 Summary:');
-  console.log('   - 2 users (1 customer with 10 credits + Rp.50.000, 1 admin)');
-  console.log('   - 2 admin API keys (placeholders - replace with real)');
+  console.log('   - 3 users (customer, admin, super admin)');
+  console.log('   - 2 paid model seeds (1 enabled, 1 disabled)');
   console.log('   - 5 system prompt templates (4 public + 1 custom user)');
-  console.log('   - 3 vouchers (WELCOME10, TOPUP50K, CREDIT20)');
-  console.log('   - 1 welcome bonus transaction');
-  console.log('   - 3 extension sessions:');
-  console.log('     * Biology Quiz (medium, free_pool)');
-  console.log('     * Math Custom (custom prompt, free_user_key)');
-  console.log('     * English Essay (long, premium)');
+  console.log('   - 1 balance top-up discount voucher');
+  console.log('   - 3 paid balance extension sessions');
   console.log('   - 2 knowledge files (PDF + TXT)');
   console.log('\n🔑 Login credentials:');
-  console.log('   Email: customer@genovaai.test or admin@genovaai.test');
+  console.log('   Email: customer@genovaai.test, admin@genovaai.test, or superadmin@genovaai.test');
   console.log('   Password: Test123!@#');
   console.log('\n🎯 Test Scenarios:');
-  console.log('   1. Free Pool Mode: Use Biology Quiz session (needs balance > 0)');
-  console.log('   2. Free User Key: Use Math Custom session (needs user API key)');
-  console.log('   3. Premium Mode: Use English Essay session (needs credits)');
+  console.log('   1. Paid Balance: Use seeded sessions with an enabled paid model');
+  console.log('   2. BYOK: Add an OpenAI-compatible provider in customer settings');
+  console.log('   3. Admin Models: Fetch models from PAID_LLM_BASE_URL and set prices');
   console.log('   4. Custom Prompt: Math session has custom prompt active');
   console.log('\n⚠️  Remember:');
-  console.log('   - Replace admin API keys with real Gemini keys');
-  console.log('   - Add user Gemini API key for free_user_key mode testing');
-  console.log('   - Customer already has 10 credits for premium testing');
+  console.log('   - Set PAID_LLM_BASE_URL and PAID_LLM_API_KEY for paid balance mode');
 
   // 5. Create system configuration
   console.log('\n🔧 Creating system configuration...');
@@ -387,18 +318,18 @@ Faktor yang mempengaruhi:
   });
 
   await prisma.systemConfig.upsert({
-    where: { key: 'premium_mode_enabled' },
+    where: { key: 'paid_balance_enabled' },
     update: {
       value: 'true',
       updatedAt: new Date(),
     },
     create: {
-      key: 'premium_mode_enabled',
+      key: 'paid_balance_enabled',
       value: 'true',
       type: 'boolean',
       category: 'features',
-      label: 'Premium Mode Availability',
-      description: 'Enable or disable Premium Mode for all users. When disabled, users will see "Under Maintenance" message.',
+      label: 'Paid Balance Availability',
+      description: 'Enable or disable paid balance mode for all users.',
     },
   });
 
@@ -420,7 +351,7 @@ Faktor yang mempengaruhi:
 
   console.log('✅ System configuration created');
   console.log('   - Exchange Rate: Rp 500 = 1 Credit');
-  console.log('   - Premium Mode: Enabled');
+  console.log('   - Paid Balance Mode: Enabled');
   console.log('   - Top-Up Mode: Enabled');
 }
 

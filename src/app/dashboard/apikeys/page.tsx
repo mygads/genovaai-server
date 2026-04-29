@@ -1,358 +1,298 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FaKey, FaPlus, FaTrash, FaEye, FaEyeSlash, FaCheckCircle, FaTimesCircle, FaEdit } from 'react-icons/fa';
+import { FaKey, FaPlus, FaTrash, FaSync, FaSave } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
-interface ApiKey {
+interface BYOKProvider {
   id: string;
   name: string;
+  baseUrl: string;
   apiKey: string;
   status: string;
-  priority: number;
+  defaultModel: string | null;
+  models?: Array<{ id: string; name?: string }>;
+  lastFetchedAt: string | null;
   lastUsedAt: string | null;
+  lastError: string | null;
   createdAt: string;
 }
 
 export default function ApiKeysPage() {
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [provider, setProvider] = useState<BYOKProvider | null>(null);
   const [loading, setLoading] = useState(true);
-  const [addingKey, setAddingKey] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
-  const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
+    name: 'My Provider',
+    baseUrl: 'https://api.openai.com/v1',
     apiKey: '',
+    defaultModel: '',
   });
 
   useEffect(() => {
-    fetchApiKeys();
+    fetchProvider();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function fetchApiKeys() {
+  async function authFetch(url: string, options: RequestInit = {}) {
+    const token = localStorage.getItem('accessToken');
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  async function fetchProvider() {
     try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        setApiKeys([]);
-        setLoading(false);
-        return;
-      }
-      
-      const response = await fetch('/api/customer/genovaai/apikeys', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authFetch('/api/customer/genovaai/apikeys');
       const data = await response.json();
-      console.log('[API Keys Page] Response:', data);
-      if (data.success && data.data?.apiKeys) {
-        console.log('[API Keys Page] Keys found:', data.data.apiKeys.length);
-        setApiKeys(data.data.apiKeys);
-      } else {
-        console.log('[API Keys Page] No keys or error:', data);
-        setApiKeys([]);
+      if (data.success) {
+        const nextProvider = data.data?.provider || null;
+        setProvider(nextProvider);
+        if (nextProvider) {
+          setFormData({
+            name: nextProvider.name || 'My Provider',
+            baseUrl: nextProvider.baseUrl || 'https://api.openai.com/v1',
+            apiKey: '',
+            defaultModel: nextProvider.defaultModel || '',
+          });
+        }
       }
     } catch (error) {
-      console.error('Failed to fetch API keys:', error);
-      setApiKeys([]);
+      console.error('Failed to fetch BYOK provider:', error);
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleAdd() {
-    if (!formData.name || !formData.apiKey) {
-      alert('Please fill all fields');
+  async function handleSave(refreshModels = false) {
+    if (!formData.name.trim() || !formData.baseUrl.trim()) {
+      alert('Please fill provider name and base URL');
       return;
     }
 
-    setAddingKey(true);
+    if (!provider && !formData.apiKey.trim()) {
+      alert('Please enter an API key');
+      return;
+    }
+
+    setSaving(true);
     try {
-      const token = localStorage.getItem('accessToken');
-      
-      if (editingKey) {
-        // Update existing key
-        const response = await fetch(`/api/customer/genovaai/apikeys/${editingKey.id}`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name: formData.name }),
-        });
-        const data = await response.json();
-        if (data.success) {
-          alert('API key updated successfully!');
-          setFormData({ name: '', apiKey: '' });
-          setShowAddForm(false);
-          setEditingKey(null);
-          fetchApiKeys();
-        } else {
-          alert(data.error || 'Failed to update API key');
-        }
+      const url = provider ? `/api/customer/genovaai/apikeys/${provider.id}` : '/api/customer/genovaai/apikeys';
+      const method = provider ? 'PATCH' : 'POST';
+      const payload: Record<string, unknown> = {
+        name: formData.name,
+        baseUrl: formData.baseUrl,
+        defaultModel: formData.defaultModel || undefined,
+      };
+
+      if (formData.apiKey.trim()) payload.apiKey = formData.apiKey;
+      if (refreshModels) payload.refreshModels = true;
+
+      const response = await authFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        alert(provider ? 'BYOK provider updated successfully' : 'BYOK provider added successfully');
+        setShowForm(false);
+        setFormData((current) => ({ ...current, apiKey: '' }));
+        fetchProvider();
       } else {
-        // Add new key
-        const response = await fetch('/api/customer/genovaai/apikeys', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData),
-        });
-        const data = await response.json();
-        if (data.success) {
-          alert('API key added and validated successfully!');
-          setFormData({ name: '', apiKey: '' });
-          setShowAddForm(false);
-          fetchApiKeys();
-        } else {
-          alert(data.error || 'Failed to add API key');
-        }
+        alert(data.error || 'Failed to save BYOK provider');
       }
     } catch (error) {
-      console.error('Failed to save API key:', error);
-      alert('Failed to save API key');
+      console.error('Failed to save BYOK provider:', error);
+      alert('Failed to save BYOK provider');
     } finally {
-      setAddingKey(false);
+      setSaving(false);
     }
   }
 
-  function handleEdit(key: ApiKey) {
-    setEditingKey(key);
-    setFormData({ name: key.name, apiKey: key.apiKey });
-    setShowAddForm(true);
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this API key?')) return;
+  async function handleDelete() {
+    if (!provider || !confirm('Delete this BYOK provider?')) return;
 
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/customer/genovaai/apikeys?id=${id}`, {
+      const response = await authFetch(`/api/customer/genovaai/apikeys/${provider.id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
       });
       const data = await response.json();
       if (data.success) {
-        alert('API key deleted successfully');
-        fetchApiKeys();
+        setProvider(null);
+        setShowForm(false);
+        setFormData({ name: 'My Provider', baseUrl: 'https://api.openai.com/v1', apiKey: '', defaultModel: '' });
       } else {
-        alert(data.error || 'Failed to delete API key');
+        alert(data.error || 'Failed to delete BYOK provider');
       }
     } catch (error) {
-      console.error('Failed to delete API key:', error);
-      alert('Failed to delete API key');
+      console.error('Failed to delete BYOK provider:', error);
     }
   }
 
-  function toggleKeyVisibility(id: string) {
-    setVisibleKeys((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  }
-
-  function maskApiKey(key: string): string {
-    if (key.length <= 8) return '****';
-    return key.slice(0, 4) + '****' + key.slice(-4);
+  function getStatusColor(status: string) {
+    if (status === 'active') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+    if (status === 'invalid') return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-lg text-gray-500 dark:text-gray-400">Loading API keys...</div>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-96 text-gray-500">Loading BYOK provider...</div>;
   }
+
+  const models = provider?.models || [];
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">API Keys</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your Gemini API keys for free mode</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">BYOK Provider</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Configure one OpenAI-compatible API provider for free BYOK usage</p>
         </div>
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={() => setShowForm(!showForm)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <FaPlus className="w-4 h-4" />
-          Add API Key
+          {provider ? 'Edit Provider' : 'Add Provider'}
         </button>
       </div>
 
-      {/* Add Form */}
-      {showAddForm && (
-        <Card className="border-border/50 shadow-sm">
+      {showForm && (
+        <Card>
           <CardHeader>
-            <CardTitle>{editingKey ? 'Edit API Key' : 'Add New API Key'}</CardTitle>
+            <CardTitle>{provider ? 'Edit BYOK Provider' : 'Add BYOK Provider'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {addingKey && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <div>
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Testing API Key...</p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                      Please wait while we validate your Gemini API key
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Key Name
-              </label>
+              <label className="block text-sm font-medium mb-2">Provider Name</label>
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="My Gemini Key"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                onChange={(event) => setFormData({ ...formData, name: event.target.value })}
+                className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
+                placeholder="e.g., OpenAI, Internal Gateway, Compatible Provider"
               />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                API Key
-              </label>
+              <label className="block text-sm font-medium mb-2">Base URL</label>
               <input
-                type="text"
-                value={formData.apiKey}
-                onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                disabled={!!editingKey}
-                placeholder="AIza..."
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
+                type="url"
+                value={formData.baseUrl}
+                onChange={(event) => setFormData({ ...formData, baseUrl: event.target.value })}
+                className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
+                placeholder="https://api.openai.com/v1"
               />
-              {editingKey && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  API key cannot be changed. Delete and create a new one if needed.
-                </p>
-              )}
+              <p className="text-xs text-gray-500 mt-1">Must support OpenAI-compatible /models and /chat/completions endpoints.</p>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleAdd}
-                disabled={addingKey}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              >
-                {addingKey ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Testing API Key...</span>
-                  </>
-                ) : (
-                  editingKey ? 'Update Key' : 'Add Key'
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddForm(false);
-                  setFormData({ name: '', apiKey: '' });
-                  setEditingKey(null);
-                }}
-                disabled={addingKey}
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Cancel
+
+            <div>
+              <label className="block text-sm font-medium mb-2">API Key</label>
+              <input
+                type="password"
+                value={formData.apiKey}
+                onChange={(event) => setFormData({ ...formData, apiKey: event.target.value })}
+                className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
+                placeholder={provider ? 'Leave blank to keep existing key' : 'sk-...'}
+              />
+            </div>
+
+            {models.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Default Model</label>
+                <select
+                  value={formData.defaultModel}
+                  onChange={(event) => setFormData({ ...formData, defaultModel: event.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
+                >
+                  {models.map((model) => (
+                    <option key={model.id} value={model.id}>{model.name || model.id}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowForm(false)} className="px-4 py-2 border rounded-lg">Cancel</button>
+              {provider && (
+                <button onClick={() => handleSave(true)} disabled={saving} className="flex items-center gap-2 px-4 py-2 border rounded-lg">
+                  <FaSync className="w-4 h-4" /> Refresh Models
+                </button>
+              )}
+              <button onClick={() => handleSave(false)} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg disabled:bg-gray-400">
+                <FaSave className="w-4 h-4" /> {saving ? 'Saving...' : 'Save & Test'}
               </button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* API Keys List */}
-      {!apiKeys || apiKeys.length === 0 ? (
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="py-12">
-            <div className="text-center">
-              <FaKey className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No API keys yet</h3>
-              <p className="text-gray-500 dark:text-gray-400">
-                Add your Gemini API key to use free mode with your own key
-              </p>
+      {provider ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2"><FaKey /> {provider.name}</CardTitle>
+              <Badge className={getStatusColor(provider.status)}>{provider.status}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="text-gray-500">Base URL</div>
+                <div className="font-medium break-all">{provider.baseUrl}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">API Key</div>
+                <div className="font-medium">{provider.apiKey}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Default Model</div>
+                <div className="font-medium">{provider.defaultModel || 'Not selected'}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Fetched Models</div>
+                <div className="font-medium">{models.length}</div>
+              </div>
+            </div>
+
+            {provider.lastError && (
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+                {provider.lastError}
+              </div>
+            )}
+
+            {models.length > 0 && (
+              <div>
+                <h3 className="font-medium mb-2">Available Models</h3>
+                <div className="flex flex-wrap gap-2">
+                  {models.map((model) => (
+                    <Badge key={model.id} variant="secondary">{model.name || model.id}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <button onClick={handleDelete} className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 rounded-lg">
+                <FaTrash className="w-4 h-4" /> Delete Provider
+              </button>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {apiKeys.map((key) => (
-            <Card key={key.id} className="border-border/50 shadow-sm">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                      <FaKey className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">{key.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <code className="text-sm text-gray-600 dark:text-gray-400 font-mono">
-                          {visibleKeys.has(key.id) ? key.apiKey : maskApiKey(key.apiKey)}
-                        </code>
-                        <button
-                          onClick={() => toggleKeyVisibility(key.id)}
-                          className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                        >
-                          {visibleKeys.has(key.id) ? (
-                            <FaEyeSlash className="w-4 h-4" />
-                          ) : (
-                            <FaEye className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge variant={key.status === 'active' ? 'default' : key.status === 'rate_limited' ? 'secondary' : 'destructive'}>
-                          {key.status}
-                        </Badge>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          Priority: {key.priority}
-                        </span>
-                        {key.lastUsedAt && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            Last used: {new Date(key.lastUsedAt).toLocaleDateString('id-ID')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEdit(key)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                      title="Edit API key name"
-                    >
-                      <FaEdit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(key.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    >
-                      <FaTrash className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardContent className="p-8 text-center text-gray-500">
+            No BYOK provider configured. Add an OpenAI-compatible provider to use BYOK mode without Genova balance.
+          </CardContent>
+        </Card>
       )}
     </div>
   );

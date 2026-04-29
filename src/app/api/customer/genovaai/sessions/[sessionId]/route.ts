@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
+import { ProviderCredentialService } from '@/services/provider-credential-service';
+import { PaidModelService } from '@/services/paid-model-service';
 import { z } from 'zod';
 
 const updateSessionSchema = z.object({
@@ -9,7 +11,7 @@ const updateSessionSchema = z.object({
   knowledgeContext: z.string().optional(),
   knowledgeFileIds: z.array(z.string()).optional(),
   answerMode: z.enum(['single', 'short', 'medium', 'long']).optional(),
-  requestMode: z.enum(['free_user_key', 'free_pool', 'premium']).optional(),
+  requestMode: z.enum(['byok', 'paid_balance']).optional(),
   provider: z.string().optional(),
   model: z.string().optional(),
   isActive: z.boolean().optional(),
@@ -17,31 +19,63 @@ const updateSessionSchema = z.object({
   customSystemPrompt: z.string().optional(),
 });
 
-/**
- * GET /api/customer/genovaai/sessions/[sessionId]
- * Get session details
- */
+async function getPayload(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) return null;
+
+  const token = authHeader.substring(7);
+  return verifyAccessToken(token);
+}
+
+async function resolveSessionModel(userId: string, mode: 'byok' | 'paid_balance', requestedModel?: string | null) {
+  if (mode === 'byok') {
+    const provider = await prisma.customerLLMProvider.findUnique({ where: { userId } });
+    if (!provider || provider.status !== 'active') {
+      return { error: 'Please add an active BYOK provider before using BYOK mode.' };
+    }
+
+    const modelIds = ProviderCredentialService.extractModelIds(provider.fetchedModels);
+    const model = requestedModel || provider.defaultModel || modelIds[0];
+    if (!model) {
+      return { error: 'Your BYOK provider has no available models. Please refresh models first.' };
+    }
+
+    if (modelIds.length > 0 && !modelIds.includes(model)) {
+      return { error: 'Selected BYOK model is not available for your provider.' };
+    }
+
+    return { model };
+  }
+
+  const paidModel = requestedModel
+    ? await PaidModelService.getEnabledModel(requestedModel)
+    : await PaidModelService.getDefaultEnabledModel();
+
+  if (!paidModel) {
+    return { error: 'Selected paid model is not available. Please contact admin.' };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { balance: true },
+  });
+
+  if (!user || Number(user.balance) < Number(paidModel.pricePerRequest)) {
+    return { error: 'Insufficient balance. Please top up balance to use this model.' };
+  }
+
+  return { model: paidModel.modelId };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
     const { sessionId: sessionIdParam } = await params;
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await getPayload(request);
     if (!payload) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const session = await prisma.extensionSession.findFirst({
@@ -52,52 +86,25 @@ export async function GET(
     });
 
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: 'Session not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
     }
 
-    return NextResponse.json({
-      success: true,
-      data: session,
-    });
+    return NextResponse.json({ success: true, data: session });
   } catch (error) {
     console.error('Get session error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
 
-/**
- * PATCH /api/customer/genovaai/sessions/[sessionId]
- * Update session configuration
- */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
     const { sessionId: sessionIdParam } = await params;
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await getPayload(request);
     if (!payload) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -109,7 +116,6 @@ export async function PATCH(
       );
     }
 
-    // Check if session exists and belongs to user
     const existingSession = await prisma.extensionSession.findFirst({
       where: {
         sessionId: sessionIdParam,
@@ -118,80 +124,34 @@ export async function PATCH(
     });
 
     if (!existingSession) {
-      return NextResponse.json(
-        { success: false, error: 'Session not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
     }
 
-    // Update session
     const data = validation.data;
-    
-    // Get user data for balance check if updating requestMode
-    if (data.requestMode) {
-      const user = await prisma.user.findUnique({
-        where: { id: payload.userId },
-        select: { balance: true },
-      });
+    const effectiveMode = data.requestMode || (existingSession.requestMode === 'byok' ? 'byok' : 'paid_balance');
+    const modeChanged = data.requestMode !== undefined && data.requestMode !== existingSession.requestMode;
+    const shouldValidateModel = data.requestMode !== undefined || data.model !== undefined;
+    let model = data.model !== undefined ? data.model : existingSession.model;
 
-      if (!user) {
-        return NextResponse.json(
-          { success: false, error: 'User not found' },
-          { status: 404 }
-        );
+    if (shouldValidateModel) {
+      const modelToResolve = modeChanged && data.model === undefined ? undefined : model;
+      const resolved = await resolveSessionModel(payload.userId, effectiveMode, modelToResolve);
+      if (resolved.error || !resolved.model) {
+        return NextResponse.json({ success: false, error: resolved.error }, { status: 400 });
       }
-
-      // Validate free_pool mode - requires balance only (not credits)
-      if (data.requestMode === 'free_pool') {
-        const balance = parseFloat(user.balance.toString());
-        if (balance <= 0) {
-          return NextResponse.json(
-            { success: false, error: 'Free Pool mode requires balance. Please top up balance first.' },
-            { status: 400 }
-          );
-        }
-      }
-
-      // Enforce Gemini provider for free modes
-      if (data.requestMode === 'free_user_key' || data.requestMode === 'free_pool') {
-        if (data.provider && data.provider !== 'gemini') {
-          return NextResponse.json(
-            { success: false, error: 'Free modes only support Gemini provider' },
-            { status: 400 }
-          );
-        }
-      }
+      model = resolved.model;
     }
 
-    // Validate provider restriction if updating provider
-    if (data.provider && data.provider !== 'gemini') {
-      const requestMode = data.requestMode || existingSession.requestMode;
-      if (requestMode === 'free_user_key' || requestMode === 'free_pool') {
-        return NextResponse.json(
-          { success: false, error: 'Free modes only support Gemini provider' },
-          { status: 400 }
-        );
-      }
-    }
-    
-    // If setting isActive to true, deactivate all other sessions
     if (data.isActive === true) {
-      console.log('[Set Active] Deactivating other sessions for user:', payload.userId);
-      const deactivateResult = await prisma.extensionSession.updateMany({
+      await prisma.extensionSession.updateMany({
         where: {
           userId: payload.userId,
-          NOT: {
-            id: existingSession.id,
-          },
+          NOT: { id: existingSession.id },
         },
-        data: {
-          isActive: false,
-        },
+        data: { isActive: false },
       });
-      console.log('[Set Active] Deactivated sessions count:', deactivateResult.count);
     }
-    
-    console.log('[Set Active] Updating session:', existingSession.id, 'with data:', data);
+
     const updated = await prisma.extensionSession.update({
       where: { id: existingSession.id },
       data: {
@@ -200,88 +160,49 @@ export async function PATCH(
         ...(data.knowledgeContext !== undefined && { knowledgeContext: data.knowledgeContext || null }),
         ...(data.knowledgeFileIds !== undefined && { knowledgeFileIds: data.knowledgeFileIds }),
         ...(data.answerMode !== undefined && { answerMode: data.answerMode }),
-        ...(data.requestMode !== undefined && { requestMode: data.requestMode }),
-        ...(data.provider !== undefined && { provider: data.provider || null }),
-        ...(data.model !== undefined && { model: data.model || null }),
+        ...(data.requestMode !== undefined && { requestMode: effectiveMode }),
+        provider: 'openai_compatible',
+        ...(shouldValidateModel && { model }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
         ...(data.useCustomPrompt !== undefined && { useCustomPrompt: data.useCustomPrompt }),
         ...(data.customSystemPrompt !== undefined && { customSystemPrompt: data.customSystemPrompt }),
         lastSyncAt: new Date(),
       },
     });
-    console.log('[Set Active] Updated session isActive:', updated.isActive);
 
-    return NextResponse.json({
-      success: true,
-      data: updated,
-    });
+    return NextResponse.json({ success: true, data: updated });
   } catch (error) {
     console.error('Update session error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
 
-/**
- * DELETE /api/customer/genovaai/sessions/[sessionId]
- * Delete (deactivate) session
- */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
     const { sessionId: sessionIdParam } = await params;
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await getPayload(request);
     if (!payload) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Soft delete by setting isActive to false
     const result = await prisma.extensionSession.updateMany({
       where: {
         sessionId: sessionIdParam,
         userId: payload.userId,
       },
-      data: {
-        isActive: false,
-      },
+      data: { isActive: false },
     });
 
     if (result.count === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Session not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Session deleted successfully',
-    });
+    return NextResponse.json({ success: true, message: 'Session deleted successfully' });
   } catch (error) {
     console.error('Delete session error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

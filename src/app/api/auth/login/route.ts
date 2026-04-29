@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         balance: true,
         subscriptionStatus: true,
         isActive: true,
+        emailVerified: true,
       },
     });
     
@@ -66,7 +67,6 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
     
-    // Verify password
     const isPasswordValid = await comparePassword(password, user.password);
     if (!isPasswordValid) {
       return NextResponse.json({
@@ -74,7 +74,14 @@ export async function POST(request: NextRequest) {
         error: 'Invalid email or password',
       }, { status: 401 });
     }
-    
+
+    if (process.env.EMAIL_VERIFICATION_REQUIRED !== 'false' && !user.emailVerified) {
+      return NextResponse.json({
+        success: false,
+        error: 'Please confirm your email before logging in.',
+      }, { status: 403 });
+    }
+
     // Get user agent and IP
     const userAgent = request.headers.get('user-agent') || 'unknown';
     const ip = request.headers.get('x-forwarded-for') || 

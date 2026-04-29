@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyAccessToken, isAdminRole } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 
 // GET /api/admin/genovaai/users - List all users
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.substring(7);
     const payload = await verifyAccessToken(token);
-    if (!payload || payload.role !== 'admin') {
+    if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }

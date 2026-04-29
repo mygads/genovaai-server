@@ -12,7 +12,6 @@ interface PaymentDetail {
   method: string
   status: string
   type: string
-  creditAmount: number | null
   paymentUrl: string | null
   reference: string | null
   externalId: string | null
@@ -22,8 +21,6 @@ interface PaymentDetail {
   gatewayResponse: {
     voucherCode?: string
     discount?: number
-    creditBonus?: number
-    balanceBonus?: number
     qrString?: string
   } | null
 }
@@ -212,7 +209,7 @@ export default function PaymentDetailPage() {
           {payment.status === 'completed' && (
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
               <p className="text-green-700 dark:text-green-300">
-                ✅ Payment successful! Your {payment.type === 'credit' ? 'credits' : 'balance'} has been added to your account.
+                Payment successful! Your balance has been added to your account.
               </p>
               <p className="text-sm text-green-600 dark:text-green-400 mt-2">
                 Redirecting to balance page in 3 seconds...
@@ -278,15 +275,6 @@ export default function PaymentDetailPage() {
               <span className="text-sm text-gray-500 dark:text-gray-400">Type</span>
               <p className="font-semibold mt-1 capitalize">{payment.type}</p>
             </div>
-
-            {payment.creditAmount && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Credits</span>
-                <p className="font-bold text-lg text-blue-600 dark:text-blue-400 mt-1">
-                  {payment.creditAmount} Credits
-                </p>
-              </div>
-            )}
 
             {payment.reference && (
               <div>
@@ -371,12 +359,6 @@ export default function PaymentDetailPage() {
                   {(payment.gatewayResponse.discount ?? 0) > 0 && (
                     <p>Discount: Rp {payment.gatewayResponse.discount!.toLocaleString('id-ID')}</p>
                   )}
-                  {(payment.gatewayResponse.creditBonus ?? 0) > 0 && (
-                    <p>Bonus Credits: +{payment.gatewayResponse.creditBonus}</p>
-                  )}
-                  {(payment.gatewayResponse.balanceBonus ?? 0) > 0 && (
-                    <p>Bonus Balance: Rp {payment.gatewayResponse.balanceBonus!.toLocaleString('id-ID')}</p>
-                  )}
                 </div>
               </div>
             </div>
@@ -396,7 +378,7 @@ export default function PaymentDetailPage() {
                 <li>Click &quot;Open Payment Page&quot; button above</li>
                 <li>Complete the payment using your selected method</li>
                 <li>Return to this page to see updated status</li>
-                <li>Your {payment.type === 'credit' ? 'credits' : 'balance'} will be added automatically after payment is confirmed</li>
+                <li>Your balance will be added automatically after payment is confirmed</li>
               </ol>
             </div>
             <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">

@@ -2,31 +2,35 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FaCreditCard, FaCoins, FaTicketAlt, FaArrowLeft } from 'react-icons/fa';
+import { FaCreditCard, FaMoneyBillWave, FaTicketAlt, FaArrowLeft } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+interface VoucherData {
+  id: string;
+  name: string;
+  discountAmount?: number;
+}
 
 export default function TopUpPage() {
   const router = useRouter();
-  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
-  const [selectedCredits, setSelectedCredits] = useState(10);
-  const [customCredits, setCustomCredits] = useState('');
+  const [selectedAmount, setSelectedAmount] = useState(50000);
+  const [customAmount, setCustomAmount] = useState('');
   const [voucherCode, setVoucherCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [voucherApplied, setVoucherApplied] = useState<any>(null);
+  const [voucherApplied, setVoucherApplied] = useState<VoucherData | null>(null);
   const [discount, setDiscount] = useState(0);
   const [topupEnabled, setTopupEnabled] = useState(true);
   const [checkingTopup, setCheckingTopup] = useState(true);
 
-  const CREDIT_PACKAGES = [
-    { credits: 10, popular: false },
-    { credits: 50, popular: true },
-    { credits: 100, popular: false },
-    { credits: 200, popular: false },
+  const BALANCE_PACKAGES = [
+    { amount: 25000, popular: false },
+    { amount: 50000, popular: true },
+    { amount: 100000, popular: false },
+    { amount: 250000, popular: false },
   ];
 
   useEffect(() => {
     checkTopupEnabled();
-    fetchExchangeRate();
   }, []);
 
   async function checkTopupEnabled() {
@@ -37,7 +41,7 @@ export default function TopUpPage() {
       });
       const data = await response.json();
       if (data.success) {
-        const topupConfig = data.data.find((c: any) => c.key === 'topup_enabled');
+        const topupConfig = data.data.find((c: { key: string; value: string }) => c.key === 'topup_enabled');
         setTopupEnabled(topupConfig?.value === 'true');
       }
     } catch (error) {
@@ -47,26 +51,15 @@ export default function TopUpPage() {
     }
   }
 
-  async function fetchExchangeRate() {
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/customer/genovaai/exchange', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setExchangeRate(data.data.rate);
-      }
-    } catch (error) {
-      console.error('Failed to fetch exchange rate:', error);
-    }
-  }
-
   async function handleApplyVoucher() {
     if (!voucherCode) return;
 
     const amount = calculateAmount();
-    
+    if (amount < 10000) {
+      alert('Minimum top-up amount is Rp 10.000');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch('/api/customer/genovaai/vouchers/validate', {
@@ -77,16 +70,18 @@ export default function TopUpPage() {
         },
         body: JSON.stringify({
           code: voucherCode,
-          amount: amount,
-          type: 'credit', // Only credit vouchers
+          amount,
+          type: 'balance',
         }),
       });
       const data = await response.json();
       if (data.success) {
         setVoucherApplied(data.data);
         setDiscount(data.data.discountAmount || 0);
-        alert(`Voucher applied! ${data.data.creditBonus ? `+${data.data.creditBonus} bonus credits` : `Discount: Rp ${data.data.discountAmount?.toLocaleString('id-ID')}`}`);
+        alert(`Voucher applied! Discount: Rp ${(data.data.discountAmount || 0).toLocaleString('id-ID')}`);
       } else {
+        setVoucherApplied(null);
+        setDiscount(0);
         alert(data.error || 'Invalid voucher code');
       }
     } catch (error) {
@@ -96,40 +91,24 @@ export default function TopUpPage() {
   }
 
   function calculateAmount(): number {
-    if (!exchangeRate) return 0;
-    const credits = customCredits ? parseInt(customCredits) : selectedCredits;
-    return credits * exchangeRate;
+    return customAmount ? parseInt(customAmount, 10) || 0 : selectedAmount;
   }
 
   function calculateFinalAmount(): number {
     return Math.max(0, calculateAmount() - discount);
   }
 
-  function getCreditsAmount(): number {
-    return customCredits ? parseInt(customCredits) || 0 : selectedCredits;
-  }
-
-  function getTotalCredits(): number {
-    return getCreditsAmount() + (voucherApplied?.creditBonus || 0);
-  }
 
   async function handleCheckout() {
-    if (!exchangeRate) {
-      alert('Exchange rate not loaded');
-      return;
-    }
-
-    const credits = getCreditsAmount();
-    if (credits < 1) {
-      alert('Minimum 1 credit');
+    const amount = calculateAmount();
+    if (amount < 10000) {
+      alert('Minimum top-up amount is Rp 10.000');
       return;
     }
 
     setLoading(true);
     try {
       const token = localStorage.getItem('accessToken');
-      
-      // Create payment
       const response = await fetch('/api/customer/genovaai/payment/create', {
         method: 'POST',
         headers: {
@@ -137,16 +116,14 @@ export default function TopUpPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          type: 'credit',
-          credits: credits,
-          amount: calculateFinalAmount(),
+          type: 'balance',
+          amount,
           voucherCode: voucherApplied ? voucherCode : undefined,
         }),
       });
 
       const data = await response.json();
       if (data.success) {
-        // Redirect to payment page
         router.push(`/dashboard/payment/${data.data.paymentId}`);
       } else {
         alert(data.error || 'Failed to create payment');
@@ -159,7 +136,7 @@ export default function TopUpPage() {
     }
   }
 
-  if (checkingTopup || !exchangeRate) {
+  if (checkingTopup) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-lg text-gray-500 dark:text-gray-400">Loading...</div>
@@ -167,7 +144,6 @@ export default function TopUpPage() {
     );
   }
 
-  // Show maintenance message when topup is disabled
   if (!topupEnabled) {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
@@ -179,10 +155,10 @@ export default function TopUpPage() {
             <FaArrowLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Top-Up Credits</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Top Up Balance</h1>
           </div>
         </div>
-        
+
         <Card className="border-yellow-500 shadow-lg">
           <CardContent className="pt-6">
             <div className="text-center py-8">
@@ -197,14 +173,13 @@ export default function TopUpPage() {
                 Top-Up Under Maintenance
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
-                The top-up feature is currently under maintenance. Please use voucher codes to add credits to your account.
+                The top-up feature is currently under maintenance. Please try again later.
               </p>
               <button
                 onClick={() => router.push('/dashboard/balance')}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center gap-2 mx-auto"
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold mx-auto"
               >
-                <FaTicketAlt className="w-4 h-4" />
-                Redeem Voucher Instead
+                Back to Balance
               </button>
             </div>
           </CardContent>
@@ -223,26 +198,27 @@ export default function TopUpPage() {
           <FaArrowLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Buy Credits</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Top Up Balance</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Exchange Rate: Rp {exchangeRate.toLocaleString('id-ID')} = 1 Credit
+            Add balance for paid AI model requests and other Genova transactions.
           </p>
         </div>
       </div>
 
-      {/* Package Selection */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {CREDIT_PACKAGES.map((pkg) => (
+        {BALANCE_PACKAGES.map((pkg) => (
           <Card
-            key={pkg.credits}
+            key={pkg.amount}
             className={`cursor-pointer transition-all ${
-              selectedCredits === pkg.credits && !customCredits
+              selectedAmount === pkg.amount && !customAmount
                 ? 'ring-2 ring-blue-500 shadow-lg'
                 : 'hover:shadow-md'
             } ${pkg.popular ? 'relative' : ''}`}
             onClick={() => {
-              setSelectedCredits(pkg.credits);
-              setCustomCredits('');
+              setSelectedAmount(pkg.amount);
+              setCustomAmount('');
+              setVoucherApplied(null);
+              setDiscount(0);
             }}
           >
             {pkg.popular && (
@@ -254,21 +230,17 @@ export default function TopUpPage() {
             )}
             <CardContent className="pt-6 text-center">
               <div className="mb-4">
-                <FaCoins className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto" />
+                <FaMoneyBillWave className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto" />
               </div>
-              <div className="text-4xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                {pkg.credits}
+              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+                Rp {pkg.amount.toLocaleString('id-ID')}
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">Credits</p>
-              <div className="text-xl font-semibold text-gray-900 dark:text-white">
-                Rp {(pkg.credits * exchangeRate).toLocaleString('id-ID')}
-              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Balance top-up</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Custom Amount */}
       <Card className="border-border/50 shadow-sm">
         <CardHeader>
           <CardTitle>Custom Amount</CardTitle>
@@ -277,17 +249,20 @@ export default function TopUpPage() {
           <div className="flex gap-3 items-end">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Enter Credits
+                Enter Balance Amount
               </label>
               <input
                 type="number"
-                value={customCredits}
+                value={customAmount}
                 onChange={(e) => {
-                  setCustomCredits(e.target.value);
-                  setSelectedCredits(0);
+                  setCustomAmount(e.target.value);
+                  setSelectedAmount(0);
+                  setVoucherApplied(null);
+                  setDiscount(0);
                 }}
-                placeholder="Enter number of credits"
-                min="1"
+                placeholder="Minimum Rp 10.000"
+                min="10000"
+                step="1000"
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -305,7 +280,6 @@ export default function TopUpPage() {
         </CardContent>
       </Card>
 
-      {/* Voucher Section */}
       <Card className="border-border/50 shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -318,8 +292,12 @@ export default function TopUpPage() {
             <input
               type="text"
               value={voucherCode}
-              onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-              placeholder="Enter voucher code"
+              onChange={(e) => {
+                setVoucherCode(e.target.value.toUpperCase());
+                setVoucherApplied(null);
+                setDiscount(0);
+              }}
+              placeholder="Enter balance voucher code"
               className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
             />
             <button
@@ -332,29 +310,23 @@ export default function TopUpPage() {
           {voucherApplied && (
             <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
               <p className="text-sm text-green-600 dark:text-green-400">
-                ✓ Voucher valid: <strong>{voucherApplied.name}</strong>
+                Voucher valid: <strong>{voucherApplied.name}</strong>
               </p>
               {discount > 0 && (
                 <p className="text-sm text-green-600 dark:text-green-400">
                   Discount: Rp {discount.toLocaleString('id-ID')}
                 </p>
               )}
-              {voucherApplied.creditBonus > 0 && (
-                <p className="text-sm text-green-600 dark:text-green-400">
-                  Bonus: +{voucherApplied.creditBonus} credits
-                </p>
-              )}
             </div>
           )}
           <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              💡 <strong>Tip:</strong> Check if your voucher is valid before proceeding with payment. The voucher will be applied and used when payment is completed.
+              Check if your voucher is valid before proceeding with payment. The voucher will be applied and used when payment is completed.
             </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Order Summary */}
       <Card className="border-border/50 shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -364,15 +336,9 @@ export default function TopUpPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-gray-600 dark:text-gray-400">Credits</span>
-            <span className="font-semibold text-gray-900 dark:text-white">{getCreditsAmount()}</span>
+            <span className="text-gray-600 dark:text-gray-400">Balance Top-Up</span>
+            <span className="font-semibold text-gray-900 dark:text-white">Rp {calculateAmount().toLocaleString('id-ID')}</span>
           </div>
-          {voucherApplied?.creditBonus > 0 && (
-            <div className="flex justify-between items-center text-green-600 dark:text-green-400">
-              <span>Bonus Credits</span>
-              <span className="font-semibold">+{voucherApplied.creditBonus}</span>
-            </div>
-          )}
           <div className="flex justify-between items-center">
             <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
             <span className="font-semibold text-gray-900 dark:text-white">
@@ -395,7 +361,7 @@ export default function TopUpPage() {
             <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
               <span>You will receive:</span>
               <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                {getTotalCredits()} Credits
+                Rp {calculateAmount().toLocaleString('id-ID')} Balance
               </span>
             </div>
           </div>

@@ -3,29 +3,16 @@ import { prisma } from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth-genovaai';
 import { PaymentGatewayFactory } from '@/lib/payment-gateway/factory';
 import { logErrorFromRequest, ErrorTypes, ErrorCodes } from '@/lib/error-logger';
+import { VoucherService } from '@/services/voucher-service';
 import { z } from 'zod';
 import { Prisma } from '@/generated/prisma';
 
 const createPaymentSchema = z.object({
-  type: z.enum(['balance', 'credit']),
+  type: z.literal('balance'),
   amount: z.number().min(10000, 'Minimum amount is Rp 10,000'),
-  credits: z.number().optional(),
-  paymentMethod: z.string().default('duitku_SP'), // Shopee Pay QRIS - available in sandbox
+  paymentMethod: z.string().default('duitku_SP'),
   voucherCode: z.string().optional(),
 });
-
-interface VoucherValidation {
-  success: boolean;
-  data?: {
-    voucherId: string;
-    type: 'balance' | 'credit';
-    discountType: 'percentage' | 'fixed';
-    discountAmount: number;
-    creditBonus: number;
-    balanceBonus: number;
-  };
-  error?: string;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { type, amount, credits, paymentMethod, voucherCode } = validation.data;
+    const { type, amount, paymentMethod, voucherCode } = validation.data;
 
     // Get user details
     const user = await prisma.user.findUnique({
@@ -63,56 +50,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
 
-    // Validate voucher if provided
-    let voucherData: VoucherValidation['data'] | null = null;
+    let voucherData: Awaited<ReturnType<typeof VoucherService.validateVoucher>> | null = null;
     if (voucherCode) {
-      try {
-        const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://genova.genfity.com';
-        const voucherResponse = await fetch(`${baseUrl}/api/customer/genovaai/vouchers/validate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            code: voucherCode,
-            amount,
-            type,
-          }),
-        });
-        
-        const voucherResult: VoucherValidation = await voucherResponse.json();
-        
-        if (!voucherResult.success) {
-          return NextResponse.json(
-            { success: false, message: voucherResult.error || 'Invalid voucher' },
-            { status: 400 }
-          );
-        }
-        
-        // Verify voucher type matches payment type
-        if (voucherResult.data?.type !== type) {
-          return NextResponse.json(
-            { success: false, message: `Voucher is for ${voucherResult.data?.type} only, not ${type}` },
-            { status: 400 }
-          );
-        }
-        
-        voucherData = voucherResult.data;
-      } catch (error) {
-        console.error('Voucher validation error:', error);
+      voucherData = await VoucherService.validateVoucher(voucherCode, userId, amount, type);
+      if (!voucherData.valid) {
         return NextResponse.json(
-          { success: false, message: 'Failed to validate voucher' },
-          { status: 500 }
+          { success: false, message: voucherData.error || 'Invalid voucher' },
+          { status: 400 }
         );
       }
     }
 
-    // Apply voucher discount
-    let discountAmount = 0;
-    if (voucherData) {
-      discountAmount = voucherData.discountAmount || 0;
-    }
+    const discountAmount = voucherData?.discountAmount || 0;
     
     const finalAmount = Math.max(10000, amount - discountAmount);
 
@@ -142,7 +91,7 @@ export async function POST(request: NextRequest) {
         userId: userId,
         transactionType: type,
         amount: finalAmount,
-        credits: credits,
+        credits: undefined,
         currency: 'IDR' as const,
         paymentMethodCode: method,
         customerInfo: {
@@ -152,8 +101,8 @@ export async function POST(request: NextRequest) {
           phone: user.phone || undefined,
         },
         voucherCode: voucherCode,
-        callbackUrl: `${process.env.DUITKU_CALLBACK_URL || 'http://localhost:8090'}/api/payment/callback`,
-        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8090'}/dashboard/payment/success`,
+        callbackUrl: process.env.DUITKU_CALLBACK_URL || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8090'}/api/payment/callback`,
+        returnUrl: process.env.DUITKU_RETURN_URL || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8090'}/dashboard/balance`,
       };
 
       // Create payment via gateway
@@ -193,13 +142,11 @@ export async function POST(request: NextRequest) {
         gatewayResponse: {
           ...gatewayResponse.gatewayResponse,
           voucherCode: voucherCode || null,
-          voucherId: voucherData?.voucherId || null,
+          voucherId: voucherData?.voucher?.id || null,
           discount: discountAmount,
-          creditBonus: voucherData?.creditBonus || 0,
-          balanceBonus: voucherData?.balanceBonus || 0,
           originalAmount: amount,
         },
-        creditAmount: type === 'credit' ? credits : null,
+        creditAmount: null,
       },
     });
 
@@ -217,8 +164,6 @@ export async function POST(request: NextRequest) {
         expiresAt: payment.expiresAt,
         voucherApplied: voucherData ? {
           code: voucherCode,
-          creditBonus: voucherData.creditBonus,
-          balanceBonus: voucherData.balanceBonus,
         } : null,
       },
     });
@@ -246,8 +191,6 @@ export async function POST(request: NextRequest) {
     );
     
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }
 

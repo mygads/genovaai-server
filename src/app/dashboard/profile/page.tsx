@@ -243,25 +243,17 @@ export default function ProfilePage() {
         </Card>
       </div>
 
-      {/* Balance & Credits */}
       <Card className="border-border/50 shadow-sm">
         <CardHeader>
-          <CardTitle>Balance & Credits</CardTitle>
+          <CardTitle>Balance</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
-              <p className="text-sm text-blue-600 dark:text-blue-400 mb-1">Credits</p>
-              <p className="text-4xl font-bold text-blue-900 dark:text-blue-300">{profile.credits}</p>
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">For premium LLM requests</p>
-            </div>
-            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6">
-              <p className="text-sm text-green-600 dark:text-green-400 mb-1">Balance</p>
-              <p className="text-4xl font-bold text-green-900 dark:text-green-300">
-                Rp {parseFloat(profile.balance).toLocaleString('id-ID')}
-              </p>
-              <p className="text-xs text-green-600 dark:text-green-400 mt-2">Available balance</p>
-            </div>
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6">
+            <p className="text-sm text-green-600 dark:text-green-400 mb-1">Available Balance</p>
+            <p className="text-4xl font-bold text-green-900 dark:text-green-300">
+              Rp {parseFloat(profile.balance).toLocaleString('id-ID')}
+            </p>
+            <p className="text-xs text-green-600 dark:text-green-400 mt-2">Used by paid balance AI sessions</p>
           </div>
         </CardContent>
       </Card>

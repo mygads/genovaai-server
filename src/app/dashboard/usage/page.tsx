@@ -1,17 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FaChartBar, FaCoins, FaGift, FaRocket, FaClock } from 'react-icons/fa';
+import { FaChartBar, FaCoins, FaKey, FaWallet, FaClock } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 interface UsageStats {
-  requestMode: string;
+  requestMode: 'paid_balance' | 'byok' | string;
   _count: { id: number };
   _sum: {
     inputTokens: number | null;
     outputTokens: number | null;
     totalTokens: number | null;
+    costBalance: number | string | null;
   };
   _avg: {
     responseTimeMs: number | null;
@@ -25,6 +26,7 @@ interface RecentActivity {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  costBalance: number | string | null;
   responseTimeMs: number;
   createdAt: string;
   chatHistory: {
@@ -42,33 +44,31 @@ interface UsageData {
     totalTokens: number;
     totalInputTokens: number;
     totalOutputTokens: number;
+    totalBalanceSpent?: number | string;
   };
   stats: {
-    premium: UsageStats;
-    free_pool: UsageStats;
-    free_mode: UsageStats;
+    paid_balance: UsageStats;
+    byok: UsageStats;
   };
   recentActivity: {
-    premium: RecentActivity[];
-    free_pool: RecentActivity[];
-    free_mode: RecentActivity[];
+    paid_balance: RecentActivity[];
+    byok: RecentActivity[];
   };
 }
+
+type RequestMode = 'paid_balance' | 'byok';
 
 export default function UsagePage() {
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'custom'>('week');
-  const [selectedMode, setSelectedMode] = useState<'premium' | 'free_pool' | 'free_mode'>('premium');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [selectedMode, setSelectedMode] = useState<RequestMode>('paid_balance');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
 
   useEffect(() => {
-    async function loadUsage() {
-      await fetchUsage();
-    }
-    loadUsage();
+    fetchUsage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
@@ -80,7 +80,7 @@ export default function UsagePage() {
         setUsage(null);
         return;
       }
-      
+
       let url = `/api/customer/genovaai/usage?period=${period}`;
       if (period === 'custom' && startDate) {
         url += `&startDate=${startDate}`;
@@ -88,13 +88,13 @@ export default function UsagePage() {
           url += `&endDate=${endDate}`;
         }
       }
-      
+
       const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
-      
+
       const data = await response.json();
       if (data.success) {
         setUsage(data.data);
@@ -107,6 +107,26 @@ export default function UsagePage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function getModeName(mode: RequestMode) {
+    return mode === 'paid_balance' ? 'Paid Balance' : 'BYOK';
+  }
+
+  function getModeIcon(mode: RequestMode) {
+    return mode === 'paid_balance'
+      ? <FaWallet className="w-5 h-5 text-blue-600" />
+      : <FaKey className="w-5 h-5 text-green-600" />;
+  }
+
+  function getModeCardClass(mode: RequestMode) {
+    return mode === 'paid_balance'
+      ? 'bg-blue-100 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+      : 'bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-800';
+  }
+
+  function formatRupiah(value?: number | string | null) {
+    return Number(value || 0).toLocaleString('id-ID');
   }
 
   if (loading) {
@@ -125,68 +145,38 @@ export default function UsagePage() {
     );
   }
 
-  const getModeIcon = (mode: string) => {
-    switch (mode) {
-      case 'premium': return <FaRocket className="w-5 h-5 text-purple-600" />;
-      case 'free_pool': return <FaCoins className="w-5 h-5 text-blue-600" />;
-      case 'free_mode': return <FaGift className="w-5 h-5 text-green-600" />;
-      default: return <FaChartBar className="w-5 h-5 text-gray-600" />;
-    }
-  };
-
-  const getModeColor = (mode: string) => {
-    switch (mode) {
-      case 'premium': return 'bg-purple-100 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800';
-      case 'free_pool': return 'bg-blue-100 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800';
-      case 'free_mode': return 'bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-800';
-      default: return 'bg-gray-100 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800';
-    }
-  };
-
-  const getModeName = (mode: string) => {
-    switch (mode) {
-      case 'premium': return 'Premium';
-      case 'free_pool': return 'Free Pool';
-      case 'free_mode': return 'Free Mode';
-      default: return mode;
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Usage Statistics</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Track your API usage across different modes
+            Track your OpenAI-compatible usage across paid balance and BYOK.
           </p>
         </div>
 
-        {/* Period Selector */}
         <div className="flex gap-2 flex-wrap items-center">
-          {(['today', 'week', 'month', 'year', 'all'] as const).map((p) => (
+          {(['today', 'week', 'month', 'year', 'all'] as const).map((value) => (
             <button
-              key={p}
+              key={value}
               onClick={() => {
-                setPeriod(p);
+                setPeriod(value);
                 setShowCustomDatePicker(false);
               }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                period === p
+                period === value
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
-              {p === 'all' ? 'All Time' : p.charAt(0).toUpperCase() + p.slice(1)}
+              {value === 'all' ? 'All Time' : value.charAt(0).toUpperCase() + value.slice(1)}
             </button>
           ))}
           <button
             onClick={() => {
-              setShowCustomDatePicker(!showCustomDatePicker);
-              if (!showCustomDatePicker) {
-                setPeriod('custom');
-              }
+              const next = !showCustomDatePicker;
+              setShowCustomDatePicker(next);
+              if (next) setPeriod('custom');
             }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               period === 'custom'
@@ -199,38 +189,31 @@ export default function UsagePage() {
         </div>
       </div>
 
-      {/* Custom Date Range Picker */}
       {showCustomDatePicker && (
         <Card className="border-border/50 shadow-sm">
           <CardContent className="pt-6">
             <div className="flex gap-4 items-end flex-wrap">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Start Date
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start Date</label>
                 <input
                   type="date"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(event) => setStartDate(event.target.value)}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  End Date
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Date</label>
                 <input
                   type="date"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(event) => setEndDate(event.target.value)}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <button
                 onClick={() => {
-                  if (startDate) {
-                    fetchUsage();
-                  }
+                  if (startDate) fetchUsage();
                 }}
                 disabled={!startDate}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
@@ -242,13 +225,12 @@ export default function UsagePage() {
         </Card>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-border/50 shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Total API Requests</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Requests</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                   {usage.summary.totalRequests.toLocaleString()}
                 </p>
@@ -264,13 +246,13 @@ export default function UsagePage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Premium Requests</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Tokens</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {usage.stats.premium._count.id.toLocaleString()}
+                  {usage.summary.totalTokens.toLocaleString()}
                 </p>
               </div>
               <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                <FaRocket className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                <FaCoins className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
           </CardContent>
@@ -280,119 +262,88 @@ export default function UsagePage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Free Requests</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Paid Balance Requests</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {(usage.stats.free_pool._count.id + usage.stats.free_mode._count.id).toLocaleString()}
+                  {usage.stats.paid_balance._count.id.toLocaleString()}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <FaWallet className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Balance Spent</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  Rp {formatRupiah(usage.summary.totalBalanceSpent)}
                 </p>
               </div>
               <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                <FaGift className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <FaCoins className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Mode Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Premium */}
-        <Card className={`border-2 ${selectedMode === 'premium' ? 'ring-2 ring-purple-500' : ''} ${getModeColor('premium')}`}>
-          <CardHeader className="cursor-pointer" onClick={() => setSelectedMode('premium')}>
-            <CardTitle className="flex items-center gap-3">
-              {getModeIcon('premium')}
-              <span className="text-gray-900 dark:text-white">{getModeName('premium')}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400">Requests</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {usage.stats.premium._count.id.toLocaleString()}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {(['paid_balance', 'byok'] as RequestMode[]).map((mode) => {
+          const stat = usage.stats[mode];
+          const selected = selectedMode === mode;
+          return (
+            <Card
+              key={mode}
+              className={`border-2 cursor-pointer ${selected ? 'ring-2 ring-offset-2 ring-blue-500' : ''} ${getModeCardClass(mode)}`}
+            >
+              <CardHeader onClick={() => setSelectedMode(mode)}>
+                <CardTitle className="flex items-center gap-3 text-gray-900 dark:text-white">
+                  {getModeIcon(mode)}
+                  <span>{getModeName(mode)}</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Requests</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {stat._count.id.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Avg Time</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {Math.round(stat._avg.responseTimeMs || 0)}ms
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Total Tokens</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {Number(stat._sum.totalTokens || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Balance Cost</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {mode === 'paid_balance' ? `Rp ${formatRupiah(stat._sum.costBalance)}` : 'Rp 0'}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {mode === 'paid_balance'
+                    ? 'Uses Genova balance and admin-enabled models.'
+                    : 'Uses your own OpenAI-compatible provider without deducting Genova balance.'}
                 </p>
-              </div>
-              <div>
-                <p className="text-gray-500 dark:text-gray-400">Credits Used</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {usage.stats.premium._count.id.toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-500 dark:text-gray-400">Avg Time</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {Math.round(usage.stats.premium._avg.responseTimeMs || 0)}ms
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-500 dark:text-gray-400">Status</p>
-                <Badge variant="default" className="mt-1">
-                  Active
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Free Pool */}
-        <Card className={`border-2 ${selectedMode === 'free_pool' ? 'ring-2 ring-blue-500' : ''} ${getModeColor('free_pool')}`}>
-          <CardHeader className="cursor-pointer" onClick={() => setSelectedMode('free_pool')}>
-            <CardTitle className="flex items-center gap-3">
-              {getModeIcon('free_pool')}
-              <span className="text-gray-900 dark:text-white">{getModeName('free_pool')}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400">Requests</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {usage.stats.free_pool._count.id.toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-500 dark:text-gray-400">Avg Time</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {Math.round(usage.stats.free_pool._avg.responseTimeMs || 0)}ms
-                </p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Using shared API pool</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Free Mode */}
-        <Card className={`border-2 ${selectedMode === 'free_mode' ? 'ring-2 ring-green-500' : ''} ${getModeColor('free_mode')}`}>
-          <CardHeader className="cursor-pointer" onClick={() => setSelectedMode('free_mode')}>
-            <CardTitle className="flex items-center gap-3">
-              {getModeIcon('free_mode')}
-              <span className="text-gray-900 dark:text-white">{getModeName('free_mode')}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400">Requests</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {usage.stats.free_mode._count.id.toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-500 dark:text-gray-400">Avg Time</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {Math.round(usage.stats.free_mode._avg.responseTimeMs || 0)}ms
-                </p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Using your own API key</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      {/* Recent Activity */}
       <Card className="border-border/50 shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -403,7 +354,7 @@ export default function UsagePage() {
         <CardContent>
           {usage.recentActivity[selectedMode].length === 0 ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              No recent activity in {getModeName(selectedMode)} mode
+              No recent activity in {getModeName(selectedMode)} mode.
             </div>
           ) : (
             <div className="space-y-3">
@@ -413,13 +364,18 @@ export default function UsagePage() {
                   className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <Badge variant="secondary" className="text-xs">
                         {activity.model}
                       </Badge>
                       <Badge variant="outline" className="text-xs capitalize">
                         {activity.provider}
                       </Badge>
+                      {selectedMode === 'paid_balance' && (
+                        <Badge variant="outline" className="text-xs">
+                          Rp {formatRupiah(activity.costBalance)}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-sm text-gray-900 dark:text-white line-clamp-1">
                       {activity.chatHistory?.question || 'Question not available'}

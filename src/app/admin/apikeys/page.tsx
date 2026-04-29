@@ -2,496 +2,260 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FaKey, FaPlus, FaEdit, FaTrash, FaCheckCircle, FaExclamationCircle, FaClock, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaSync, FaSave } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
-interface APIKey {
+interface PaidModel {
   id: string;
-  userId: string | null;
-  name: string | null;
-  apiKey: string;
-  status: string;
-  lastUsedAt: string | null;
-  lastErrorAt: string | null;
-  lastErrorType: string | null;
-  requestsToday: number;
-  maxRequestsPerDay: number | null;
-  priority: number;
+  modelId: string;
+  displayName: string | null;
+  enabled: boolean;
+  pricePerRequest: string;
+  lastFetchedAt: string | null;
   createdAt: string;
-  user: {
-    name: string | null;
-    email: string;
-  } | null;
+  updatedAt: string;
 }
 
 export default function AdminAPIKeysPage() {
   const router = useRouter();
-  const [apiKeys, setApiKeys] = useState<APIKey[]>([]);
+  const [models, setModels] = useState<PaidModel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingKey, setEditingKey] = useState<APIKey | null>(null);
-  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
-  const [newKey, setNewKey] = useState({
-    apiKey: '',
-    name: '',
-    priority: '1',
-    maxRequestsPerDay: '1500',
-  });
+  const [syncing, setSyncing] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [edits, setEdits] = useState<Record<string, { displayName: string; pricePerRequest: string; enabled: boolean }>>({});
 
   useEffect(() => {
-    fetchAPIKeys();
+    fetchModels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function fetchAPIKeys() {
+  async function authFetch(url: string, options: RequestInit = {}) {
+    const token = localStorage.getItem('accessToken');
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  async function fetchModels() {
+    setLoading(true);
+    setError(null);
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/admin/genovaai/apikeys', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authFetch('/api/admin/genovaai/models');
       const data = await response.json();
       if (data.success) {
-        setApiKeys(data.data);
+        setModels(data.data || []);
+        const nextEdits: Record<string, { displayName: string; pricePerRequest: string; enabled: boolean }> = {};
+        for (const model of data.data || []) {
+          nextEdits[model.id] = {
+            displayName: model.displayName || model.modelId,
+            pricePerRequest: model.pricePerRequest?.toString() || '0',
+            enabled: model.enabled,
+          };
+        }
+        setEdits(nextEdits);
+      } else {
+        setError(data.error || 'Failed to fetch paid models');
       }
     } catch (error) {
-      console.error('Failed to fetch API keys:', error);
+      console.error('Failed to fetch paid models:', error);
+      setError('Failed to fetch paid models');
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleAddKey() {
-    if (!newKey.apiKey.trim()) {
-      alert('Please enter an API key');
+  async function handleSyncModels() {
+    setSyncing(true);
+    setError(null);
+    try {
+      const response = await authFetch('/api/admin/genovaai/models', { method: 'POST' });
+      const data = await response.json();
+      if (data.success) {
+        await fetchModels();
+      } else {
+        setError(data.error || 'Failed to fetch models from gateway');
+      }
+    } catch (error) {
+      console.error('Failed to sync paid models:', error);
+      setError('Failed to fetch models from gateway');
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function handleSave(model: PaidModel) {
+    const edit = edits[model.id];
+    if (!edit) return;
+
+    const price = Number(edit.pricePerRequest || 0);
+    if (Number.isNaN(price) || price < 0) {
+      alert('Price must be a valid number');
       return;
     }
 
+    setSavingId(model.id);
     try {
-      const token = localStorage.getItem('accessToken');
-      
-      if (editingKey) {
-        // Update existing key
-        const response = await fetch(`/api/admin/genovaai/apikeys/${editingKey.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name: newKey.name || null,
-            priority: parseInt(newKey.priority),
-            maxRequestsPerDay: parseInt(newKey.maxRequestsPerDay),
-          }),
-        });
-
-        const data = await response.json();
-        if (data.success) {
-          alert('API key updated successfully!');
-          setShowAddModal(false);
-          setEditingKey(null);
-          setNewKey({ apiKey: '', name: '', priority: '1', maxRequestsPerDay: '1500' });
-          fetchAPIKeys();
-        } else {
-          alert(data.error || 'Failed to update API key');
-        }
-      } else {
-        // Add new key
-        const response = await fetch('/api/admin/genovaai/apikeys', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            apiKey: newKey.apiKey,
-            name: newKey.name || null,
-            priority: parseInt(newKey.priority),
-            maxRequestsPerDay: parseInt(newKey.maxRequestsPerDay),
-          }),
-        });
-
-        const data = await response.json();
-        if (data.success) {
-          alert('API key added successfully!');
-          setShowAddModal(false);
-          setNewKey({ apiKey: '', name: '', priority: '1', maxRequestsPerDay: '1500' });
-          fetchAPIKeys();
-        } else {
-          alert(data.error || 'Failed to add API key');
-        }
-      }
-    } catch (error) {
-      console.error('Failed to save API key:', error);
-      alert('Failed to save API key');
-    }
-  }
-
-  function handleEditKey(key: APIKey) {
-    setEditingKey(key);
-    setNewKey({
-      apiKey: key.apiKey,
-      name: key.name || '',
-      priority: key.priority.toString(),
-      maxRequestsPerDay: (key.maxRequestsPerDay || 1500).toString(),
-    });
-    setShowAddModal(true);
-  }
-
-  function toggleKeyVisibility(id: string) {
-    setVisibleKeys((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  }
-
-  async function handleDeleteKey(keyId: string) {
-    if (!confirm('Are you sure you want to delete this API key?')) return;
-
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/admin/genovaai/apikeys/${keyId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const response = await authFetch(`/api/admin/genovaai/models/${model.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          displayName: edit.displayName,
+          pricePerRequest: price,
+          enabled: edit.enabled,
+        }),
       });
-
       const data = await response.json();
       if (data.success) {
-        alert('API key deleted successfully');
-        fetchAPIKeys();
+        await fetchModels();
       } else {
-        alert(data.error || 'Failed to delete API key');
+        alert(data.error || 'Failed to update model');
       }
     } catch (error) {
-      console.error('Failed to delete API key:', error);
-      alert('Failed to delete API key');
+      console.error('Failed to update model:', error);
+      alert('Failed to update model');
+    } finally {
+      setSavingId(null);
     }
   }
 
-  async function handleToggleStatus(keyId: string, currentStatus: string) {
-    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/admin/genovaai/apikeys/${keyId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        fetchAPIKeys();
-      } else {
-        alert(data.error || 'Failed to update status');
-      }
-    } catch (error) {
-      console.error('Failed to update status:', error);
-      alert('Failed to update status');
-    }
+  function setEdit(id: string, patch: Partial<{ displayName: string; pricePerRequest: string; enabled: boolean }>) {
+    setEdits((current) => ({
+      ...current,
+      [id]: {
+        ...current[id],
+        ...patch,
+      },
+    }));
   }
-
-  const getStatusBadge = (status: string) => {
-    const colors = {
-      active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-      inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
-      rate_limited: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-      invalid: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-      dead: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-    };
-    return colors[status as keyof typeof colors] || colors.inactive;
-  };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-lg text-gray-500 dark:text-gray-400">Loading API keys...</div>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-96 text-gray-500">Loading paid models...</div>;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">API Key Management</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage Gemini API keys for the system</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <button
+              onClick={() => router.push('/admin/dashboard')}
+              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mb-4"
+            >
+              ← Back to Dashboard
+            </button>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Paid Model Management</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
+              Fetch OpenAI-compatible models from the gateway configured in .env, enable models, and set customer prices.
+            </p>
+          </div>
+          <button
+            onClick={handleSyncModels}
+            disabled={syncing}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg disabled:bg-gray-400"
+          >
+            <FaSync className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Fetching...' : 'Fetch Models from Gateway'}
+          </button>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <FaPlus className="w-4 h-4" />
-          Add API Key
-        </button>
-      </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Total Keys</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{apiKeys.length}</p>
-              </div>
-              <FaKey className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            </div>
-          </CardContent>
-        </Card>
+        {error && (
+          <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300">
+            {error}
+          </div>
+        )}
 
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {apiKeys.filter(k => k.status === 'active').length}
-                </p>
-              </div>
-              <FaCheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-gray-500">Total Models</div>
+              <div className="text-2xl font-semibold">{models.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-gray-500">Enabled Models</div>
+              <div className="text-2xl font-semibold">{models.filter((model) => model.enabled).length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-gray-500">Gateway Config</div>
+              <div className="text-sm font-medium">PAID_LLM_BASE_URL + PAID_LLM_API_KEY</div>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Rate Limited</p>
-                <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                  {apiKeys.filter(k => k.status === 'rate_limited').length}
-                </p>
-              </div>
-              <FaClock className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Invalid</p>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                  {apiKeys.filter(k => k.status === 'invalid' || k.status === 'dead').length}
-                </p>
-              </div>
-              <FaExclamationCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* API Keys List */}
-      <Card className="border-border/50 shadow-sm">
-        <CardHeader>
-          <CardTitle>API Keys</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {apiKeys.map((key) => (
-              <div
-                key={key.id}
-                className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
-                        {key.name || 'Unnamed Key'}
-                      </h3>
-                      <Badge className={getStatusBadge(key.status)}>{key.status}</Badge>
-                      <Badge variant="secondary">Priority: {key.priority}</Badge>
-                      {key.userId === null && (
-                        <Badge variant="default" className="bg-purple-600">Admin Key</Badge>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                      <p>
-                        <span className="font-medium">Key:</span>{' '}
-                        <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">
-                          {visibleKeys.has(key.id) 
-                            ? key.apiKey 
-                            : `${key.apiKey.slice(0, 12)}...${key.apiKey.slice(-8)}`
-                          }
-                        </code>
-                        <button
-                          onClick={() => toggleKeyVisibility(key.id)}
-                          className="ml-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                        >
-                          {visibleKeys.has(key.id) ? (
-                            <FaEyeSlash className="w-4 h-4 inline" />
-                          ) : (
-                            <FaEye className="w-4 h-4 inline" />
-                          )}
-                        </button>
-                      </p>
-                      {key.user && (
-                        <p>
-                          <span className="font-medium">Owner:</span> {key.user.name} ({key.user.email})
-                        </p>
-                      )}
-                      <p>
-                        <span className="font-medium">Usage Today:</span> {key.requestsToday} / {key.maxRequestsPerDay || '∞'}
-                      </p>
-                      {key.lastUsedAt && (
-                        <p>
-                          <span className="font-medium">Last Used:</span>{' '}
-                          {new Date(key.lastUsedAt).toLocaleString('id-ID')}
-                        </p>
-                      )}
-                      {key.lastErrorAt && (
-                        <p className="text-red-600 dark:text-red-400">
-                          <span className="font-medium">Last Error:</span> {key.lastErrorType} at{' '}
-                          {new Date(key.lastErrorAt).toLocaleString('id-ID')}
-                        </p>
-                      )}
-                    </div>
+        <div className="space-y-4">
+          {models.map((model) => {
+            const edit = edits[model.id] || { displayName: model.displayName || model.modelId, pricePerRequest: model.pricePerRequest?.toString() || '0', enabled: model.enabled };
+            return (
+              <Card key={model.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-4">
+                    <CardTitle className="text-lg break-all">{model.modelId}</CardTitle>
+                    <Badge className={edit.enabled ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'}>
+                      {edit.enabled ? 'Enabled' : 'Disabled'}
+                    </Badge>
                   </div>
-
-                  <div className="flex gap-2 ml-4">
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-2">Display Name</label>
+                    <input
+                      type="text"
+                      value={edit.displayName}
+                      onChange={(event) => setEdit(model.id, { displayName: event.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Price / Request</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={edit.pricePerRequest}
+                      onChange={(event) => setEdit(model.id, { pricePerRequest: event.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <label className="flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={edit.enabled}
+                        onChange={(event) => setEdit(model.id, { enabled: event.target.checked })}
+                      />
+                      Enabled
+                    </label>
                     <button
-                      onClick={() => handleEditKey(key)}
-                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition-colors"
-                      title="Edit API key"
+                      onClick={() => handleSave(model)}
+                      disabled={savingId === model.id}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg disabled:bg-gray-400"
                     >
-                      <FaEdit className="w-3 h-3 inline mr-1" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleToggleStatus(key.id, key.status)}
-                      className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                        key.status === 'active'
-                          ? 'bg-yellow-600 text-white hover:bg-yellow-700'
-                          : 'bg-green-600 text-white hover:bg-green-700'
-                      }`}
-                    >
-                      {key.status === 'active' ? 'Deactivate' : 'Activate'}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteKey(key.id)}
-                      className="px-3 py-1 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 transition-colors"
-                    >
-                      Delete
+                      <FaSave className="w-4 h-4" />
+                      Save
                     </button>
                   </div>
-                </div>
-              </div>
-            ))}
-
-            {apiKeys.length === 0 && (
-              <p className="text-center text-gray-500 dark:text-gray-400 py-8">
-                No API keys found. Add one to get started.
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Add Key Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              {editingKey ? 'Edit API Key' : 'Add API Key'}
-            </h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  API Key *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newKey.apiKey}
-                  onChange={(e) => setNewKey({ ...newKey, apiKey: e.target.value })}
-                  disabled={!!editingKey}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
-                  placeholder="AIza..."
-                />
-                {editingKey && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    API key cannot be changed
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={newKey.name}
-                  onChange={(e) => setNewKey({ ...newKey, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Production Key 1"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Priority
-                  </label>
-                  <input
-                    type="number"
-                    value={newKey.priority}
-                    onChange={(e) => setNewKey({ ...newKey, priority: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Daily Limit
-                  </label>
-                  <input
-                    type="number"
-                    value={newKey.maxRequestsPerDay}
-                    onChange={(e) => setNewKey({ ...newKey, maxRequestsPerDay: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setEditingKey(null);
-                  setNewKey({ apiKey: '', name: '', priority: '1', maxRequestsPerDay: '1500' });
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddKey}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                {editingKey ? 'Update Key' : 'Add Key'}
-              </button>
-            </div>
-          </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
-      )}
+
+        {models.length === 0 && (
+          <Card>
+            <CardContent className="p-8 text-center text-gray-500">
+              No paid models found. Configure PAID_LLM_BASE_URL and PAID_LLM_API_KEY, then fetch models from the gateway.
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

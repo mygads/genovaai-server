@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  FaCreditCard, FaCoins, FaHistory, FaKey, FaCog, FaChartLine, 
+  FaCreditCard, FaHistory, FaKey, FaCog, FaChartLine,
   FaRobot, FaFileAlt, FaUsers, FaCheckCircle, FaExclamationCircle,
   FaArrowUp, FaArrowDown, FaClock
 } from 'react-icons/fa';
@@ -23,9 +23,8 @@ interface UserStats {
   failedRequests: number;
   
   // Request Mode Distribution
-  freePoolRequests: number;
-  freeUserKeyRequests: number;
-  premiumRequests: number;
+  paidBalanceRequests: number;
+  byokRequests: number;
   
   // Session & Knowledge Stats
   activeSessions: number;
@@ -53,7 +52,7 @@ interface UserStats {
     provider: string;
     model: string;
     status: string;
-    costCredits: number;
+    costBalance: number | string;
     createdAt: string;
   }>;
   
@@ -127,20 +126,20 @@ export default function CustomerDashboardPage() {
         </Badge>
       </div>
 
-      {/* Main Stats - Balance & Credits */}
+      {/* Main Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/dashboard/balance')}>
+        <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/dashboard/usage')}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Credits</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Paid AI Requests</p>
                 <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                  {stats?.credits?.toLocaleString() || 0}
+                  {stats?.paidBalanceRequests?.toLocaleString() || 0}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">For AI requests</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Using Genova balance</p>
               </div>
               <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <FaCoins className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                <FaRobot className="w-8 h-8 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
@@ -207,27 +206,20 @@ export default function CustomerDashboardPage() {
           <CardTitle>Request Mode Distribution</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Free Pool</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats?.freePoolRequests || 0}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Paid Balance</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats?.paidBalanceRequests || 0}</p>
               </div>
-              <Badge variant="secondary">Shared</Badge>
+              <Badge>Balance</Badge>
             </div>
             <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Your API Key</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats?.freeUserKeyRequests || 0}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">BYOK</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats?.byokRequests || 0}</p>
               </div>
               <Badge variant="secondary">Personal</Badge>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Premium</p>
-                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats?.premiumRequests || 0}</p>
-              </div>
-              <Badge>Credits</Badge>
             </div>
           </div>
         </CardContent>
@@ -368,15 +360,9 @@ export default function CustomerDashboardPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      {tx.credits !== 0 ? (
-                        <p className={`font-semibold ${tx.credits > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {tx.credits > 0 ? '+' : ''}{tx.credits} credits
-                        </p>
-                      ) : (
-                        <p className="font-semibold text-gray-900 dark:text-white">
-                          Rp {parseFloat(tx.amount).toLocaleString('id-ID')}
-                        </p>
-                      )}
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        Rp {parseFloat(tx.amount).toLocaleString('id-ID')}
+                      </p>
                       <Badge variant={tx.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
                         {tx.status}
                       </Badge>
@@ -431,7 +417,7 @@ export default function CustomerDashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-blue-600">
-                        {req.costCredits} credits
+                        {Number(req.costBalance || 0) > 0 ? `Rp ${Number(req.costBalance).toLocaleString('id-ID')}` : 'BYOK'}
                       </p>
                       <Badge variant={req.status === 'success' ? 'default' : 'secondary'} className="text-xs">
                         {req.status}
@@ -462,8 +448,8 @@ export default function CustomerDashboardPage() {
                 <FaCreditCard className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900 dark:text-white">Buy Credits</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Top up your balance</p>
+                <p className="font-semibold text-gray-900 dark:text-white">Top Up Balance</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Add funds for paid balance requests</p>
               </div>
             </button>
 
@@ -475,7 +461,7 @@ export default function CustomerDashboardPage() {
                 <FaKey className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900 dark:text-white">API Keys</p>
+                <p className="font-semibold text-gray-900 dark:text-white">BYOK Provider</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{stats?.activeApiKeys || 0} active</p>
               </div>
             </button>

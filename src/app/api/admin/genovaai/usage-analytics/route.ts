@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyAccessToken, isAdminRole } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 
-/**
- * GET /api/admin/genovaai/usage-analytics
- * Get detailed AI usage analytics with token tracking
- */
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -15,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.substring(7);
     const payload = await verifyAccessToken(token);
-    if (!payload || payload.role !== 'admin') {
+    if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -27,19 +23,18 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    // Calculate date range
     let dateFilter = {};
     if (startDate && endDate) {
       dateFilter = {
         createdAt: {
           gte: new Date(startDate),
-          lte: new Date(endDate + 'T23:59:59'),
+          lte: new Date(`${endDate}T23:59:59`),
         },
       };
     } else {
       const now = new Date();
       let start: Date;
-      
+
       switch (range) {
         case 'today':
           start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -53,17 +48,15 @@ export async function GET(request: NextRequest) {
         default:
           start = new Date(0);
       }
-      
+
       dateFilter = { createdAt: { gte: start } };
     }
 
-    // Build filters
     const filters: Record<string, unknown> = { ...dateFilter };
     if (mode) filters.requestMode = mode;
     if (model) filters.model = model;
     if (userId) filters.userId = userId;
 
-    // Fetch aggregated data
     const requests = await prisma.lLMRequest.findMany({
       where: filters,
       select: {
@@ -75,6 +68,7 @@ export async function GET(request: NextRequest) {
         inputTokens: true,
         outputTokens: true,
         totalTokens: true,
+        costBalance: true,
         responseTimeMs: true,
         user: {
           select: {
@@ -85,40 +79,41 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Aggregate stats
     const totalRequests = requests.length;
-    const totalInputTokens = requests.reduce((sum, r) => sum + (r.inputTokens || 0), 0);
-    const totalOutputTokens = requests.reduce((sum, r) => sum + (r.outputTokens || 0), 0);
-    const totalTokens = requests.reduce((sum, r) => sum + (r.totalTokens || 0), 0);
+    const totalInputTokens = requests.reduce((sum, request) => sum + (request.inputTokens || 0), 0);
+    const totalOutputTokens = requests.reduce((sum, request) => sum + (request.outputTokens || 0), 0);
+    const totalTokens = requests.reduce((sum, request) => sum + (request.totalTokens || 0), 0);
+    const totalCostBalance = requests.reduce((sum, request) => sum + Number(request.costBalance || 0), 0);
 
-    // By mode
+    const paidBalanceRequests = requests.filter((request) => request.requestMode === 'paid_balance');
+    const byokRequests = requests.filter((request) => request.requestMode === 'byok');
+
     const byMode = {
-      premium: {
-        requests: requests.filter(r => r.requestMode === 'premium').length,
-        tokens: requests.filter(r => r.requestMode === 'premium').reduce((sum, r) => sum + (r.totalTokens || 0), 0),
+      paid_balance: {
+        requests: paidBalanceRequests.length,
+        tokens: paidBalanceRequests.reduce((sum, request) => sum + (request.totalTokens || 0), 0),
+        balanceSpent: paidBalanceRequests.reduce((sum, request) => sum + Number(request.costBalance || 0), 0),
       },
-      free_pool: {
-        requests: requests.filter(r => r.requestMode === 'free_pool').length,
-        tokens: requests.filter(r => r.requestMode === 'free_pool').reduce((sum, r) => sum + (r.totalTokens || 0), 0),
-      },
-      free_user_key: {
-        requests: requests.filter(r => r.requestMode === 'free_user_key').length,
-        tokens: requests.filter(r => r.requestMode === 'free_user_key').reduce((sum, r) => sum + (r.totalTokens || 0), 0),
+      byok: {
+        requests: byokRequests.length,
+        tokens: byokRequests.reduce((sum, request) => sum + (request.totalTokens || 0), 0),
+        balanceSpent: 0,
       },
     };
 
-    // By model
     const modelMap = new Map<string, { requests: number; tokens: number }>();
-    requests.forEach(r => {
-      const existing = modelMap.get(r.model || 'unknown') || { requests: 0, tokens: 0 };
-      modelMap.set(r.model || 'unknown', {
+    requests.forEach((request) => {
+      const key = request.model || 'unknown';
+      const existing = modelMap.get(key) || { requests: 0, tokens: 0 };
+      modelMap.set(key, {
         requests: existing.requests + 1,
-        tokens: existing.tokens + (r.totalTokens || 0),
+        tokens: existing.tokens + (request.totalTokens || 0),
       });
     });
-    const byModel = Array.from(modelMap.entries()).map(([model, data]) => ({ model, ...data })).sort((a, b) => b.tokens - a.tokens);
+    const byModel = Array.from(modelMap.entries())
+      .map(([modelName, data]) => ({ model: modelName, ...data }))
+      .sort((a, b) => b.tokens - a.tokens);
 
-    // By user and mode/model
     interface UsageData {
       userId: string;
       userName: string | null;
@@ -132,44 +127,50 @@ export async function GET(request: NextRequest) {
       totalInputTokens: number;
       totalOutputTokens: number;
       totalTokens: number;
+      totalCostBalance: number;
       totalResponseTime: number;
     }
+
     const usageMap = new Map<string, UsageData>();
-    requests.forEach(r => {
-      const key = `${r.userId}-${r.requestMode}-${r.model}`;
+    requests.forEach((request) => {
+      const key = `${request.userId}-${request.requestMode}-${request.model}`;
       const existing = usageMap.get(key);
-      
+
       if (existing) {
-        existing.totalRequests++;
-        if (r.status === 'success') existing.successfulRequests++;
-        else existing.failedRequests++;
-        existing.totalInputTokens += r.inputTokens || 0;
-        existing.totalOutputTokens += r.outputTokens || 0;
-        existing.totalTokens += r.totalTokens || 0;
-        existing.totalResponseTime += r.responseTimeMs || 0;
+        existing.totalRequests += 1;
+        if (request.status === 'success') existing.successfulRequests += 1;
+        else existing.failedRequests += 1;
+        existing.totalInputTokens += request.inputTokens || 0;
+        existing.totalOutputTokens += request.outputTokens || 0;
+        existing.totalTokens += request.totalTokens || 0;
+        existing.totalCostBalance += Number(request.costBalance || 0);
+        existing.totalResponseTime += request.responseTimeMs || 0;
       } else {
         usageMap.set(key, {
-          userId: r.userId,
-          userName: r.user?.name || null,
-          userEmail: r.user?.email || 'unknown',
-          requestMode: r.requestMode,
-          provider: r.provider || 'unknown',
-          model: r.model || 'unknown',
+          userId: request.userId,
+          userName: request.user?.name || null,
+          userEmail: request.user?.email || 'unknown',
+          requestMode: request.requestMode,
+          provider: request.provider || 'unknown',
+          model: request.model || 'unknown',
           totalRequests: 1,
-          successfulRequests: r.status === 'success' ? 1 : 0,
-          failedRequests: r.status !== 'success' ? 1 : 0,
-          totalInputTokens: r.inputTokens || 0,
-          totalOutputTokens: r.outputTokens || 0,
-          totalTokens: r.totalTokens || 0,
-          totalResponseTime: r.responseTimeMs || 0,
+          successfulRequests: request.status === 'success' ? 1 : 0,
+          failedRequests: request.status !== 'success' ? 1 : 0,
+          totalInputTokens: request.inputTokens || 0,
+          totalOutputTokens: request.outputTokens || 0,
+          totalTokens: request.totalTokens || 0,
+          totalCostBalance: Number(request.costBalance || 0),
+          totalResponseTime: request.responseTimeMs || 0,
         });
       }
     });
 
-    const usage = Array.from(usageMap.values()).map(u => ({
-      ...u,
-      avgResponseTime: u.totalRequests > 0 ? u.totalResponseTime / u.totalRequests : 0,
-    })).sort((a, b) => b.totalTokens - a.totalTokens);
+    const usage = Array.from(usageMap.values())
+      .map((item) => ({
+        ...item,
+        avgResponseTime: item.totalRequests > 0 ? item.totalResponseTime / item.totalRequests : 0,
+      }))
+      .sort((a, b) => b.totalTokens - a.totalTokens);
 
     return NextResponse.json({
       success: true,
@@ -178,6 +179,7 @@ export async function GET(request: NextRequest) {
         totalInputTokens,
         totalOutputTokens,
         totalTokens,
+        totalCostBalance,
         byMode,
         byModel,
         usage,

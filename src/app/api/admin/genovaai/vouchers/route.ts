@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyAccessToken, isAdminRole } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@/generated/prisma';
 import { z } from 'zod';
@@ -8,7 +8,7 @@ const createVoucherSchema = z.object({
   code: z.string().min(3).max(50),
   name: z.string().min(1),
   description: z.string().optional(),
-  type: z.enum(['balance', 'credit']),
+  type: z.literal('balance'),
   discountType: z.enum(['percentage', 'fixed']),
   value: z.number().positive(),
   maxDiscount: z.number().positive().optional(),
@@ -17,8 +17,6 @@ const createVoucherSchema = z.object({
   allowMultipleUsePerUser: z.boolean().default(false),
   startDate: z.string(),
   endDate: z.string().optional(),
-  creditBonus: z.number().optional(),
-  balanceBonus: z.number().optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -35,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.substring(7);
     const payload = await verifyAccessToken(token);
-    if (!payload || payload.role !== 'admin') {
+    if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -77,7 +75,6 @@ export async function GET(request: NextRequest) {
           value: v.value.toString(),
           maxDiscount: v.maxDiscount?.toString(),
           minAmount: v.minAmount?.toString(),
-          balanceBonus: v.balanceBonus?.toString(),
         })),
         total,
         limit,
@@ -106,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.substring(7);
     const payload = await verifyAccessToken(token);
-    if (!payload || payload.role !== 'admin') {
+    if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -148,8 +145,6 @@ export async function POST(request: NextRequest) {
         allowMultipleUsePerUser: validation.data.allowMultipleUsePerUser,
         startDate: new Date(validation.data.startDate),
         endDate: validation.data.endDate ? new Date(validation.data.endDate) : null,
-        creditBonus: validation.data.creditBonus,
-        balanceBonus: validation.data.balanceBonus ? new Prisma.Decimal(validation.data.balanceBonus) : null,
         isActive: validation.data.isActive,
       },
     });
@@ -161,7 +156,6 @@ export async function POST(request: NextRequest) {
         value: voucher.value.toString(),
         maxDiscount: voucher.maxDiscount?.toString(),
         minAmount: voucher.minAmount?.toString(),
-        balanceBonus: voucher.balanceBonus?.toString(),
       },
     });
   } catch (error) {

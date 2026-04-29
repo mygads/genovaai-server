@@ -21,8 +21,6 @@ interface VoucherDetail {
   endDate: string | null;
   maxUses: number | null;
   usedCount: number;
-  creditBonus: number | null;
-  balanceBonus: string | null;
   createdAt: string;
   _count: {
     voucherUsages: number;

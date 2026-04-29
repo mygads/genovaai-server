@@ -39,7 +39,7 @@ export default function LoginPage() {
       }
 
       // Redirect berdasarkan role
-      if (data.data?.user?.role === "admin") {
+      if (data.data?.user?.role === "admin" || data.data?.user?.role === "super_admin") {
         router.push("/admin/dashboard");
       } else {
         router.push("/dashboard");
@@ -99,6 +99,12 @@ export default function LoginPage() {
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="••••••••"
               />
+            </div>
+
+            <div className="flex justify-end">
+              <Link href="/forgot-password" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                Lupa password?
+              </Link>
             </div>
 
             {/* Error Message */}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FaSave, FaPlus, FaTrash, FaCog, FaSync, FaCheckCircle, FaEdit } from 'react-icons/fa';
+import { FaPlus, FaSave, FaSync, FaTrash } from 'react-icons/fa';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -18,23 +18,38 @@ interface ExtensionSession {
   lastUsedAt: string | null;
 }
 
+interface ModelOption {
+  id?: string;
+  modelId: string;
+  displayName?: string | null;
+  pricePerRequest?: string | number;
+}
+
+interface BYOKProvider {
+  id: string;
+  name: string;
+  baseUrl: string;
+  status: string;
+  defaultModel: string | null;
+}
+
+interface UserProfile {
+  balance?: string | number;
+}
+
 export default function SettingsPage() {
   const [sessions, setSessions] = useState<ExtensionSession[]>([]);
+  const [models, setModels] = useState<ModelOption[]>([]);
+  const [byokProvider, setByokProvider] = useState<BYOKProvider | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [userApiKeys, setUserApiKeys] = useState<Array<{ id: string; status: string }>>([]);
   const [knowledgeFiles, setKnowledgeFiles] = useState<Array<{ id: string; fileName: string; extractedText: string | null; fileType: string }>>([]);
-  const [selectedFilePreview, setSelectedFilePreview] = useState<{ id: string; fileName: string; text: string } | null>(null);
-  const [systemSettings, setSystemSettings] = useState<{ premium_mode_enabled?: boolean }>({});
-  const [editingId, setEditingId] = useState<string | null>(null);
-
   const [newSession, setNewSession] = useState({
     sessionName: '',
-    requestMode: 'premium',
-    provider: 'gemini',
-    model: 'gemini-2.5-flash',
+    requestMode: 'paid_balance' as 'paid_balance' | 'byok',
+    model: '',
     answerMode: 'medium',
     systemPrompt: 'You are a helpful AI assistant.',
     useCustomPrompt: false,
@@ -43,16 +58,9 @@ export default function SettingsPage() {
     useKnowledge: false,
   });
 
-  const providers = [
-    { value: 'openai-premium', label: 'OpenAI Premium', models: ['gpt-5.1', 'gpt-5.1-mini', 'gpt-5.1-turbo', 'gpt-4.5-turbo'], requiresPremium: true },
-    { value: 'gemini-premium', label: 'Gemini Premium', models: ['gemini-3.0-pro'], requiresPremium: true },
-    { value: 'gemini', label: 'Gemini', models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash-lite'], requiresPremium: false },
-  ];
-
   const requestModes = [
-    { value: 'premium', label: 'Premium Mode', description: 'Use credits' },
-    { value: 'free_user_key', label: 'Free Mode', description: 'Use your API keys' },
-    { value: 'free_pool', label: 'Free Pool', description: 'Use balance (shared pool)' },
+    { value: 'paid_balance', label: 'Paid Balance', description: 'Use Genova balance and admin-enabled models' },
+    { value: 'byok', label: 'BYOK', description: 'Use your own OpenAI-compatible provider' },
   ];
 
   const answerModes = [
@@ -63,935 +71,418 @@ export default function SettingsPage() {
   ];
 
   useEffect(() => {
-    fetchSessions();
-    fetchUser();
-    fetchUserApiKeys();
-    fetchKnowledgeFiles();
-    fetchSystemSettings();
+    Promise.all([fetchSessions(), fetchUser(), fetchBYOKProvider(), fetchKnowledgeFiles()])
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    fetchModels(newSession.requestMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newSession.requestMode]);
+
+  async function authFetch(url: string, options: RequestInit = {}) {
+    const token = localStorage.getItem('accessToken');
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
 
   async function fetchUser() {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/customer/genovaai/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authFetch('/api/customer/genovaai/profile');
       const data = await response.json();
-      console.log('[Fetch User] Profile data:', data);
-      if (data.success && data.data) {
-        console.log('[Fetch User] User balance:', data.data.balance, 'Credits:', data.data.credits);
+      if (data.success) {
         setUser(data.data);
-        // Update localStorage with fresh data
         localStorage.setItem('user', JSON.stringify(data.data));
-      } else {
-        // Fallback to localStorage if API fails
-        const userData = localStorage.getItem('user');
-        if (userData) {
-          setUser(JSON.parse(userData));
-        }
       }
     } catch (error) {
       console.error('Error fetching user:', error);
-      // Fallback to localStorage
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        try {
-          setUser(JSON.parse(userData));
-        } catch (e) {
-          console.error('Failed to parse user:', e);
-        }
-      }
     }
   }
 
-  async function fetchUserApiKeys() {
+  async function fetchBYOKProvider() {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/customer/genovaai/apikeys', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authFetch('/api/customer/genovaai/apikeys');
       const data = await response.json();
-      if (data.success && data.data?.apiKeys) {
-        setUserApiKeys(data.data.apiKeys);
+      if (data.success) {
+        setByokProvider(data.data?.provider || null);
       }
     } catch (error) {
-      console.error('Error fetching API keys:', error);
+      console.error('Error fetching BYOK provider:', error);
+    }
+  }
+
+  async function fetchModels(mode = newSession.requestMode) {
+    try {
+      const response = await authFetch(`/api/customer/genovaai/models?mode=${mode}`);
+      const data = await response.json();
+      const nextModels = data.success ? data.data?.models || [] : [];
+      setModels(nextModels);
+      setNewSession((current) => ({
+        ...current,
+        model: nextModels.some((model: ModelOption) => model.modelId === current.model)
+          ? current.model
+          : nextModels[0]?.modelId || '',
+      }));
+    } catch (error) {
+      console.error('Error fetching models:', error);
+      setModels([]);
+    }
+  }
+
+  async function fetchSessions() {
+    try {
+      const response = await authFetch('/api/customer/genovaai/sessions');
+      const data = await response.json();
+      if (data.success) {
+        setSessions(data.data.sessions || []);
+      }
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
     }
   }
 
   async function fetchKnowledgeFiles() {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/customer/genovaai/knowledge?limit=100', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authFetch('/api/customer/genovaai/knowledge?limit=100');
       const data = await response.json();
-      if (data.success && data.data?.files) {
-        setKnowledgeFiles(data.data.files);
+      if (data.success) {
+        setKnowledgeFiles(data.data.files || []);
       }
     } catch (error) {
       console.error('Error fetching knowledge files:', error);
     }
   }
 
-  async function fetchSystemSettings() {
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/customer/genovaai/system-settings', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.success && data.data) {
-        setSystemSettings(data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching system settings:', error);
-    }
-  }
-
-  async function fetchSessions() {
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/customer/genovaai/sessions', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      console.log('[Fetch Sessions] Response:', data);
-      if (data.success) {
-        const sessionsList = data.data.sessions || [];
-        console.log('[Fetch Sessions] Sessions list:', sessionsList);
-        console.log('[Fetch Sessions] Active sessions:', sessionsList.filter((s: ExtensionSession) => s.isActive));
-        setSessions(sessionsList);
-      }
-    } catch (error) {
-      console.error('Error fetching sessions:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleCreateSession() {
     if (!newSession.sessionName.trim()) {
-      alert('Session name is required');
+      alert('Please enter a session name');
       return;
     }
 
-    // Validate premium mode
-    if (newSession.requestMode === 'premium') {
-      const credits = user?.credits || 0;
-      if (credits < 1) {
-        alert('Premium Mode requires credits. Please top up credits first.');
-        return;
-      }
+    if (!newSession.model) {
+      alert('Please select a model');
+      return;
     }
 
-    // Validate free_pool mode
-    if (newSession.requestMode === 'free_pool') {
-      const balance = parseFloat(user?.balance || '0');
-      if (balance <= 0) {
-        alert('Free Pool mode requires balance. Please top up balance first.');
-        return;
-      }
+    if (newSession.requestMode === 'byok' && byokProvider?.status !== 'active') {
+      alert('Please configure an active BYOK provider first');
+      return;
     }
 
-    // Validate free_user_key mode
-    if (newSession.requestMode === 'free_user_key') {
-      if (userApiKeys.length === 0) {
-        alert('Free Mode requires at least one API key. Please add an API key first.');
-        return;
-      }
-    }
-
-    // Force Gemini for free modes
-    if (newSession.requestMode === 'free_user_key' || newSession.requestMode === 'free_pool') {
-      if (newSession.provider !== 'gemini') {
-        setNewSession({ ...newSession, provider: 'gemini', model: 'gemini-2.5-flash' });
-      }
+    const selectedModel = models.find((model) => model.modelId === newSession.model);
+    const price = Number(selectedModel?.pricePerRequest || 0);
+    if (newSession.requestMode === 'paid_balance' && Number(user?.balance || 0) < price) {
+      alert('Insufficient balance for the selected model');
+      return;
     }
 
     setSaving(true);
     try {
-      const token = localStorage.getItem('accessToken');
-      
-      if (editingId) {
-        // Update existing session
-        // Prepare payload - remove useKnowledge field as it's not in the schema
-        const payload = {
+      const response = await authFetch('/api/customer/genovaai/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           sessionName: newSession.sessionName,
           requestMode: newSession.requestMode,
-          provider: newSession.provider,
+          provider: 'openai_compatible',
           model: newSession.model,
           answerMode: newSession.answerMode,
           systemPrompt: newSession.systemPrompt,
           useCustomPrompt: newSession.useCustomPrompt,
           customSystemPrompt: newSession.customSystemPrompt,
-          knowledgeFileIds: newSession.knowledgeFileIds || [],
-        };
-        
-        console.log('[Update Session] Sending data:', payload);
-        const response = await fetch(`/api/customer/genovaai/sessions/${editingId}`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
+          knowledgeFileIds: newSession.useKnowledge ? newSession.knowledgeFileIds : [],
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('Session created successfully');
+        setShowAddForm(false);
+        setNewSession({
+          sessionName: '',
+          requestMode: 'paid_balance',
+          model: models[0]?.modelId || '',
+          answerMode: 'medium',
+          systemPrompt: 'You are a helpful AI assistant.',
+          useCustomPrompt: false,
+          customSystemPrompt: '',
+          knowledgeFileIds: [],
+          useKnowledge: false,
         });
-        const data = await response.json();
-        console.log('[Update Session] Response:', data);
-        if (data.success) {
-          // Reload sessions to get fresh data
-          await fetchSessions();
-          setNewSession({
-            sessionName: '',
-            requestMode: 'premium',
-            provider: 'openai',
-            model: 'gpt-4o',
-            answerMode: 'medium',
-            systemPrompt: 'You are a helpful AI assistant.',
-            useCustomPrompt: false,
-            customSystemPrompt: '',
-            knowledgeFileIds: [],
-            useKnowledge: false,
-          });
-          setShowAddForm(false);
-          setEditingId(null);
-        } else {
-          console.error('[Update Session] Error:', data);
-          alert(data.error || data.message || 'Failed to update session');
-        }
+        fetchSessions();
       } else {
-        // Create new session
-        // Prepare payload - remove useKnowledge field as it's not in the schema
-        const payload = {
-          sessionName: newSession.sessionName,
-          requestMode: newSession.requestMode,
-          provider: newSession.provider,
-          model: newSession.model,
-          answerMode: newSession.answerMode,
-          systemPrompt: newSession.systemPrompt,
-          useCustomPrompt: newSession.useCustomPrompt,
-          customSystemPrompt: newSession.customSystemPrompt,
-          knowledgeFileIds: newSession.knowledgeFileIds || [],
-        };
-        
-        console.log('[Create Session] Sending data:', payload);
-        const response = await fetch('/api/customer/genovaai/sessions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-        const data = await response.json();
-        console.log('[Create Session] Response:', data);
-        if (data.success) {
-          // Reload sessions to get fresh data
-          await fetchSessions();
-          setNewSession({
-            sessionName: '',
-            requestMode: 'premium',
-            provider: 'openai',
-            model: 'gpt-4o',
-            answerMode: 'medium',
-            systemPrompt: 'You are a helpful AI assistant.',
-            useCustomPrompt: false,
-            customSystemPrompt: '',
-            knowledgeFileIds: [],
-            useKnowledge: false,
-          });
-          setShowAddForm(false);
-        } else {
-          console.error('[Create Session] Error:', data);
-          alert(data.error || data.message || 'Failed to create session');
-        }
+        alert(data.error || 'Failed to create session');
       }
     } catch (error) {
-      console.error('Error creating/updating session:', error);
-      alert('Failed to save session');
+      console.error('Failed to create session:', error);
+      alert('Failed to create session');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSetActive(sessionId: string) {
+    try {
+      const response = await authFetch(`/api/customer/genovaai/sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: true }),
+      });
+      const data = await response.json();
+      if (data.success) fetchSessions();
+      else alert(data.error || 'Failed to activate session');
+    } catch (error) {
+      console.error('Failed to activate session:', error);
     }
   }
 
   async function handleDeleteSession(sessionId: string) {
-    if (!confirm('Are you sure you want to delete this session?')) {
-      return;
-    }
+    if (!confirm('Delete this session?')) return;
 
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/customer/genovaai/sessions/${sessionId}`, {
+      const response = await authFetch(`/api/customer/genovaai/sessions/${sessionId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
       });
       const data = await response.json();
-      if (data.success) {
-        // Reload sessions to get fresh data
-        await fetchSessions();
-      } else {
-        alert(data.error || 'Failed to delete session');
-      }
+      if (data.success) fetchSessions();
+      else alert(data.error || 'Failed to delete session');
     } catch (error) {
-      console.error('Error deleting session:', error);
-      alert('Failed to delete session');
+      console.error('Failed to delete session:', error);
     }
   }
 
-  function handleEditSession(session: ExtensionSession) {
-    const knowledgeFileIds = (session as ExtensionSession & { knowledgeFileIds?: string[] }).knowledgeFileIds || [];
-    setEditingId(session.sessionId);
-    setNewSession({
-      sessionName: session.sessionName,
-      requestMode: session.requestMode,
-      provider: session.provider || 'gemini',
-      model: session.model || 'gemini-2.5-flash',
-      answerMode: session.answerMode,
-      systemPrompt: (session as ExtensionSession & { systemPrompt?: string }).systemPrompt || 'You are a helpful AI assistant.',
-      useCustomPrompt: (session as ExtensionSession & { useCustomPrompt?: boolean }).useCustomPrompt || false,
-      customSystemPrompt: (session as ExtensionSession & { customSystemPrompt?: string }).customSystemPrompt || '',
-      knowledgeFileIds: knowledgeFileIds,
-      useKnowledge: knowledgeFileIds.length > 0, // Enable if session has knowledge files
-    });
-    setShowAddForm(true);
-  }
-
-  async function handleSetActive(sessionId: string) {
-    // Set active session by updating it
-    setSaving(true);
-    try {
-      const token = localStorage.getItem('accessToken');
-      console.log('[Set Active] Request:', { sessionId, isActive: true });
-      
-      const response = await fetch(`/api/customer/genovaai/sessions/${sessionId}`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ isActive: true }),
-      });
-      
-      const data = await response.json();
-      console.log('[Set Active] Response:', data);
-      
-      if (data.success) {
-        // Refresh sessions list
-        await fetchSessions();
-        alert('Session activated successfully!');
-      } else {
-        console.error('[Set Active] Error:', data.error);
-        alert(data.error || 'Failed to set active session');
-      }
-    } catch (error) {
-      console.error('Error setting active session:', error);
-      alert('Failed to set active session');
-    } finally {
-      setSaving(false);
-    }
+  function formatPrice(value?: string | number) {
+    return Number(value || 0).toLocaleString('id-ID');
   }
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Extension Settings</h1>
-        <Card>
-          <CardContent className="p-8">
-            <div className="text-center text-gray-500 dark:text-gray-400">Loading settings...</div>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-96 text-gray-500">Loading settings...</div>;
   }
 
   return (
     <div className="space-y-6">
-      {/* File Preview Modal */}
-      {selectedFilePreview && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Extracted Text Preview
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {selectedFilePreview.fileName}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedFilePreview(null)}
-                className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-              >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">
-                  {selectedFilePreview.text}
-                </pre>
-              </div>
-              {selectedFilePreview.text.length < 50 && (
-                <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    ⚠️ <strong>Extraction may have failed</strong> - The extracted text is too short. Please check if the file was uploaded correctly.
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => setSelectedFilePreview(null)}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Extension Settings</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage your Chrome extension configuration and sessions
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AI Settings</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage sessions, models, prompts, and knowledge context</p>
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <FaPlus className="w-4 h-4" />
           New Session
         </button>
       </div>
 
-      {/* Add/Edit Session Form */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-gray-500">Balance</div>
+            <div className="text-2xl font-semibold">Rp {Number(user?.balance || 0).toLocaleString('id-ID')}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-gray-500">BYOK Provider</div>
+            <div className="text-lg font-semibold">{byokProvider ? byokProvider.status : 'Not configured'}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-gray-500">Available Models</div>
+            <div className="text-2xl font-semibold">{models.length}</div>
+          </CardContent>
+        </Card>
+      </div>
+
       {showAddForm && (
         <Card>
           <CardHeader>
-            <CardTitle>{editingId ? 'Edit Session' : 'Create New Session'}</CardTitle>
+            <CardTitle>Create AI Session</CardTitle>
           </CardHeader>
-          <CardContent>
-            {/* User Balance Info */}
-            {user && (
-              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">Your Account Status</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-blue-700 dark:text-blue-300">Credits:</span>
-                        <span className={`ml-2 font-semibold ${(user.credits || 0) > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {user.credits || 0}
-                        </span>
-                        {(user.credits || 0) < 1 && (
-                          <a href="/dashboard/balance/topup" className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:underline">
-                            Top up →
-                          </a>
-                        )}
-                      </div>
-                      <div>
-                        <span className="text-blue-700 dark:text-blue-300">Balance:</span>
-                        <span className={`ml-2 font-semibold ${parseFloat(user.balance || '0') > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                          Rp {parseFloat(user.balance || '0').toLocaleString('id-ID')}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-blue-700 dark:text-blue-300">API Keys:</span>
-                        <span className={`ml-2 font-semibold ${userApiKeys.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {userApiKeys.length}
-                        </span>
-                        {userApiKeys.length === 0 && (
-                          <a href="/dashboard/apikeys" className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:underline">
-                            Add key →
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Session Name</label>
+              <input
+                type="text"
+                value={newSession.sessionName}
+                onChange={(event) => setNewSession({ ...newSession, sessionName: event.target.value })}
+                className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
+                placeholder="e.g., Research, Work, Quiz"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Request Mode</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {requestModes.map((mode) => {
+                  const disabled = mode.value === 'byok' && byokProvider?.status !== 'active';
+                  return (
+                    <button
+                      key={mode.value}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => !disabled && setNewSession({ ...newSession, requestMode: mode.value as 'paid_balance' | 'byok', model: '' })}
+                      className={`p-4 rounded-lg border-2 text-left ${newSession.requestMode === mode.value ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <div className="font-medium">{mode.label}</div>
+                      <div className="text-xs text-gray-500 mt-1">{mode.description}</div>
+                      {disabled && <div className="text-xs text-red-500 mt-1">Configure an active BYOK provider first</div>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Provider</label>
+                <div className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                  OpenAI-compatible
                 </div>
               </div>
-            )}
-
-            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Session Name
-                </label>
-                <input
-                  type="text"
-                  value={newSession.sessionName}
-                  onChange={(e) => setNewSession({ ...newSession, sessionName: e.target.value })}
-                  placeholder="e.g., Work, Personal, Research"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Request Mode
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {requestModes.map((mode) => {
-                    const isPremiumModeDisabled = systemSettings.premium_mode_enabled === false;
-                    const isPremiumDisabled = mode.value === 'premium' && 
-                      (isPremiumModeDisabled || !user || (user.credits || 0) < 1);
-                    const isFreePoolDisabled = mode.value === 'free_pool' && 
-                      (!user || parseFloat(user.balance || '0') <= 0);
-                    const isFreeUserKeyDisabled = mode.value === 'free_user_key' && userApiKeys.length === 0;
-                    const isDisabled = isPremiumDisabled || isFreePoolDisabled || isFreeUserKeyDisabled;
-                    
-                    if (mode.value === 'free_pool') {
-                      console.log('[Free Pool Check]', {
-                        user,
-                        balance: user?.balance,
-                        parsedBalance: parseFloat(user?.balance || '0'),
-                        isFreePoolDisabled,
-                      });
-                    }
-                    
-                    return (
-                      <button
-                        key={mode.value}
-                        onClick={() => {
-                          if (!isDisabled) {
-                            const newMode = mode.value as 'premium' | 'free_user_key' | 'free_pool';
-                            setNewSession({ 
-                              ...newSession, 
-                              requestMode: newMode,
-                              provider: (newMode === 'free_user_key' || newMode === 'free_pool') ? 'gemini' : newSession.provider,
-                              model: (newMode === 'free_user_key' || newMode === 'free_pool') ? 'gemini-2.5-flash' : newSession.model,
-                            });
-                          }
-                        }}
-                        disabled={isDisabled}
-                        className={`p-4 rounded-lg border-2 transition-all text-left ${
-                          newSession.requestMode === mode.value
-                            ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        <div className="font-medium text-gray-900 dark:text-white">{mode.label}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {mode.description}
-                          {mode.value === 'premium' && isPremiumModeDisabled && (
-                            <span className="block text-orange-500 mt-1 font-medium">🔧 Under Maintenance</span>
-                          )}
-                          {mode.value === 'premium' && !isPremiumModeDisabled && (user?.credits || 0) < 1 && (
-                            <span className="block text-red-500 mt-1 font-medium">Top up credits first</span>
-                          )}
-                          {mode.value === 'free_pool' && isFreePoolDisabled && (
-                            <span className="block text-red-500 mt-1 font-medium">Requires balance</span>
-                          )}
-                          {mode.value === 'free_user_key' && isFreeUserKeyDisabled && (
-                            <span className="block text-red-500 mt-1 font-medium">Add API key first</span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Answer Mode
-                </label>
+                <label className="block text-sm font-medium mb-2">Model</label>
                 <select
-                  value={newSession.answerMode}
-                  onChange={(e) => setNewSession({ ...newSession, answerMode: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={newSession.model}
+                  onChange={(event) => setNewSession({ ...newSession, model: event.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
                 >
-                  {answerModes.map((mode) => (
-                    <option key={mode.value} value={mode.value}>
-                      {mode.label} - {mode.description}
+                  {models.map((model) => (
+                    <option key={model.modelId} value={model.modelId}>
+                      {model.displayName || model.modelId}
+                      {newSession.requestMode === 'paid_balance' ? ` - Rp ${formatPrice(model.pricePerRequest)}/request` : ''}
                     </option>
                   ))}
                 </select>
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Provider
-                  </label>
-                  <select
-                    value={newSession.provider}
-                    onChange={(e) => {
-                      const provider = providers.find(p => p.value === e.target.value);
-                      setNewSession({
-                        ...newSession,
-                        provider: e.target.value,
-                        model: provider?.models[0] || '',
-                      });
-                    }}
-                    disabled={newSession.requestMode === 'free_user_key' || newSession.requestMode === 'free_pool'}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
-                  >
-                    {providers
-                      .filter(p => newSession.requestMode === 'premium' || !p.requiresPremium)
-                      .map((provider) => (
-                        <option key={provider.value} value={provider.value}>
-                          {provider.label}
-                        </option>
-                      ))}
-                  </select>
-                  {(newSession.requestMode === 'free_user_key' || newSession.requestMode === 'free_pool') && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Only Gemini available for free modes
-                    </p>
-                  )}
-                </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Answer Mode</label>
+              <select
+                value={newSession.answerMode}
+                onChange={(event) => setNewSession({ ...newSession, answerMode: event.target.value })}
+                className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
+              >
+                {answerModes.map((mode) => (
+                  <option key={mode.value} value={mode.value}>{mode.label} - {mode.description}</option>
+                ))}
+              </select>
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Model
-                  </label>
-                  <select
-                    value={newSession.model}
-                    onChange={(e) => setNewSession({ ...newSession, model: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {providers
-                      .find(p => p.value === newSession.provider)
-                      ?.models.map((model) => (
-                        <option key={model} value={model}>
-                          {model}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              </div>
+            <div className="border-t pt-4">
+              <label className="flex items-center gap-2 cursor-pointer mb-3">
+                <input
+                  type="checkbox"
+                  checked={newSession.useCustomPrompt}
+                  onChange={(event) => setNewSession({ ...newSession, useCustomPrompt: event.target.checked })}
+                />
+                <span className="text-sm">Use custom system prompt</span>
+              </label>
+              {newSession.useCustomPrompt && (
+                <textarea
+                  value={newSession.customSystemPrompt}
+                  onChange={(event) => setNewSession({ ...newSession, customSystemPrompt: event.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
+                  placeholder="Write your custom system prompt..."
+                />
+              )}
+            </div>
 
-              {/* Custom Prompt Section */}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    System Prompt Configuration
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newSession.useCustomPrompt}
-                      onChange={(e) => setNewSession({ ...newSession, useCustomPrompt: e.target.checked })}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                    />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Use Custom Prompt</span>
-                  </label>
-                </div>
-                
-                {newSession.useCustomPrompt ? (
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2">
-                      Write your own system prompt to customize AI behavior
-                    </label>
-                    <textarea
-                      value={newSession.customSystemPrompt}
-                      onChange={(e) => setNewSession({ ...newSession, customSystemPrompt: e.target.value })}
-                      placeholder="Example: You are a professional quiz assistant specialized in biology. Always provide detailed explanations with scientific terms..."
-                      rows={4}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      <strong>Default Prompt:</strong> AI will use the standard prompt optimized for your selected answer mode ({newSession.answerMode}).
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Knowledge Base Section */}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Knowledge Base
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newSession.useKnowledge}
-                      onChange={(e) => setNewSession({ ...newSession, useKnowledge: e.target.checked })}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                    />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Enable Knowledge Base</span>
-                  </label>
-                </div>
-                
+            {knowledgeFiles.length > 0 && (
+              <div className="border-t pt-4">
+                <label className="flex items-center gap-2 cursor-pointer mb-3">
+                  <input
+                    type="checkbox"
+                    checked={newSession.useKnowledge}
+                    onChange={(event) => setNewSession({ ...newSession, useKnowledge: event.target.checked })}
+                  />
+                  <span className="text-sm">Use knowledge files</span>
+                </label>
                 {newSession.useKnowledge && (
-                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                      Select knowledge files to include in this session&apos;s context
-                    </p>
-                    {knowledgeFiles.length === 0 ? (
-                      <div className="text-center py-4">
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No knowledge files available</p>
-                        <a 
-                          href="/dashboard/knowledge" 
-                          className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                        >
-                          Upload knowledge files →
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 max-h-60 overflow-y-auto">
-                        {knowledgeFiles.map((file) => (
-                          <label 
-                            key={file.id} 
-                            className="flex items-center gap-3 p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 cursor-pointer transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={newSession.knowledgeFileIds.includes(file.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setNewSession({
-                                    ...newSession,
-                                    knowledgeFileIds: [...newSession.knowledgeFileIds, file.id]
-                                  });
-                                } else {
-                                  setNewSession({
-                                    ...newSession,
-                                    knowledgeFileIds: newSession.knowledgeFileIds.filter(id => id !== file.id)
-                                  });
-                                }
-                              }}
-                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                {file.fileName}
-                              </p>
-                              {file.extractedText && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
-                                  {file.extractedText.substring(0, 100)}...
-                                </p>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (file.extractedText) {
-                                  setSelectedFilePreview({
-                                    id: file.id,
-                                    fileName: file.fileName,
-                                    text: file.extractedText
-                                  });
-                                } else {
-                                  alert('No extracted text available for this file. The extraction may have failed.');
-                                }
-                              }}
-                              className="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                            >
-                              Preview
-                            </button>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                    {newSession.knowledgeFileIds.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          <strong>{newSession.knowledgeFileIds.length}</strong> file{newSession.knowledgeFileIds.length !== 1 ? 's' : ''} selected
-                        </p>
-                      </div>
-                    )}
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {knowledgeFiles.map((file) => (
+                      <label key={file.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={newSession.knowledgeFileIds.includes(file.id)}
+                          onChange={(event) => {
+                            const ids = event.target.checked
+                              ? [...newSession.knowledgeFileIds, file.id]
+                              : newSession.knowledgeFileIds.filter((id) => id !== file.id);
+                            setNewSession({ ...newSession, knowledgeFileIds: ids });
+                          }}
+                        />
+                        {file.fileName}
+                      </label>
+                    ))}
                   </div>
                 )}
               </div>
+            )}
 
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setEditingId(null);
-                    setNewSession({
-                      sessionName: '',
-                      requestMode: 'premium',
-                      provider: 'gemini',
-                      model: 'gemini-2.5-flash',
-                      answerMode: 'medium',
-                      systemPrompt: 'You are a helpful AI assistant.',
-                      useCustomPrompt: false,
-                      customSystemPrompt: '',
-                      knowledgeFileIds: [],
-                      useKnowledge: false,
-                    });
-                  }}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateSession}
-                  disabled={saving}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors"
-                >
-                  <FaSave className="w-4 h-4" />
-                  {saving ? (editingId ? 'Updating...' : 'Creating...') : (editingId ? 'Update Session' : 'Create Session')}
-                </button>
-              </div>
+            <div className="flex justify-end gap-3 pt-4">
+              <button onClick={() => setShowAddForm(false)} className="px-4 py-2 border rounded-lg">Cancel</button>
+              <button
+                onClick={handleCreateSession}
+                disabled={saving || !newSession.model}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg disabled:bg-gray-400"
+              >
+                <FaSave className="w-4 h-4" />
+                {saving ? 'Saving...' : 'Create Session'}
+              </button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Sessions List */}
-      {sessions.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-                <FaCog className="w-8 h-8 text-gray-400" />
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Sessions</h2>
+        <button onClick={() => { fetchSessions(); fetchModels(); }} className="flex items-center gap-2 px-3 py-2 border rounded-lg">
+          <FaSync className="w-4 h-4" /> Refresh
+        </button>
+      </div>
+
+      <div className="grid gap-4">
+        {sessions.map((session) => (
+          <Card key={session.id}>
+            <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-lg">{session.sessionName}</h3>
+                  {session.isActive && <Badge>Active</Badge>}
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  {session.requestMode} · {session.model || 'No model'} · {session.answerMode}
+                </div>
               </div>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              No Sessions Yet
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Create your first session to configure your extension settings
-            </p>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <FaPlus className="w-4 h-4" />
-              Create Session
-            </button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {sessions.map((session) => {
-            const provider = providers.find(p => p.value === session.provider);
-            return (
-              <Card key={session.sessionId || session.id} className={session.isActive ? 'border-2 border-green-500 bg-green-50 dark:bg-green-900/10' : 'border border-gray-200 dark:border-gray-700'}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {session.sessionName}
-                        </h3>
-                        {session.isActive && (
-                          <Badge variant="default" className="flex items-center gap-1">
-                            <FaCheckCircle className="w-3 h-3" />
-                            Active
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2 text-sm">
-                        <Badge variant="secondary">
-                          {session.requestMode === 'premium' ? '💳 Premium' : session.requestMode === 'free_user_key' ? '🔑 Free' : '🌐 Pool'}
-                        </Badge>
-                        <Badge variant="outline">
-                          {provider?.label || session.provider || 'N/A'}
-                        </Badge>
-                        <Badge variant="outline">
-                          {session.model || 'N/A'}
-                        </Badge>
-                        <Badge variant="outline">
-                          {session.answerMode}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!session.isActive && (
-                        <button
-                          onClick={() => handleSetActive(session.sessionId)}
-                          disabled={saving}
-                          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 rounded-lg transition-colors"
-                          title="Set as active session"
-                        >
-                          <FaCheckCircle className="w-4 h-4" />
-                          Set Active
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleEditSession(session)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                        title="Edit session"
-                      >
-                        <FaEdit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSession(session.sessionId)}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        title="Delete session"
-                      >
-                        <FaTrash className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+              <div className="flex gap-2">
+                {!session.isActive && (
+                  <button onClick={() => handleSetActive(session.sessionId)} className="px-3 py-2 bg-blue-600 text-white rounded-lg">Set Active</button>
+                )}
+                <button onClick={() => handleDeleteSession(session.sessionId)} className="px-3 py-2 border text-red-600 rounded-lg">
+                  <FaTrash className="w-4 h-4" />
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Created:</span>
-                      <span className="ml-2 text-gray-900 dark:text-white">
-                        {new Date(session.createdAt).toLocaleDateString('id-ID')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Last Used:</span>
-                      <span className="ml-2 text-gray-900 dark:text-white">
-                        {session.lastUsedAt ? new Date(session.lastUsedAt).toLocaleDateString('id-ID') : 'Never'}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Info Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FaCog className="w-5 h-5 text-blue-600" />
-            How It Works
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
-            <p>
-              <strong className="text-gray-900 dark:text-white">Sessions</strong> allow you to configure different settings for your Chrome extension. Each session can have its own request mode, provider, and model preferences.
-            </p>
-            <p>
-              <strong className="text-gray-900 dark:text-white">Active Session:</strong> Only one session can be active at a time. The active session&apos;s settings will be used by your extension.
-            </p>
-            <p>
-              <strong className="text-gray-900 dark:text-white">Request Modes:</strong>
-            </p>
-            <ul className="list-disc list-inside ml-4 space-y-1">
-              <li><strong>Paid Mode:</strong> Uses your account credits to make requests</li>
-              <li><strong>Free Mode:</strong> Uses your own API keys (configure in API Keys page)</li>
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
+        {sessions.length === 0 && (
+          <Card>
+            <CardContent className="p-8 text-center text-gray-500">No sessions yet. Create your first session to start using Genova.</CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

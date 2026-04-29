@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyAccessToken, isAdminRole } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -27,7 +27,7 @@ export async function GET(
 
     const token = authHeader.substring(7);
     const payload = await verifyAccessToken(token);
-    if (!payload || payload.role !== 'admin') {
+    if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -37,12 +37,18 @@ export async function GET(
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
+        customerLLMProvider: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+          },
+        },
         _count: {
           select: {
             llmRequests: true,
             creditTransactions: true,
             payments: true,
-            geminiApiKeys: true,
           },
         },
       },
@@ -88,7 +94,7 @@ export async function PATCH(
 
     const token = authHeader.substring(7);
     const payload = await verifyAccessToken(token);
-    if (!payload || payload.role !== 'admin') {
+    if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
