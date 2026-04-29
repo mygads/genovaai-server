@@ -134,9 +134,9 @@ jobs:
           ENV_FILE: ${{ secrets.ENV_FILE }}
         run: |
           if [ -n "$ENV_FILE" ]; then
-            echo "📝 Updating .env file on server..."
-            echo "$ENV_FILE" | ssh $VPS_USER@$VPS_HOST "cat > ~/genfity/genovaai-server/.env"
-            echo "✅ ENV file updated!"
+            echo "📝 Updating .env file on server (full replace)..."
+            printf '%s' "$ENV_FILE" | ssh $VPS_USER@$VPS_HOST "cat > /tmp/genovaai-server.env && sudo install -m 600 -o root -g root /tmp/genovaai-server.env /home/$VPS_USER/genfity/genovaai-server/.env && rm -f /tmp/genovaai-server.env"
+            echo "✅ ENV file updated with full replace!"
           else
             echo "⏭️ ENV_FILE secret not set, skipping .env update"
           fi
@@ -163,10 +163,15 @@ jobs:
             
             # Set image and deploy using docker compose
             export IMAGE=ghcr.io/mygads/genovaai-server:latest
-            
-            # Pull and recreate
-            sudo -E docker compose pull
-            sudo -E docker compose up -d --force-recreate
+
+            # Pull and recreate. If GHCR pull is unavailable, build from the checked-out source.
+            if sudo -E docker compose pull; then
+              sudo -E docker compose up -d --force-recreate
+            else
+              echo "⚠️ GHCR pull failed, building locally from source..."
+              export IMAGE=genovaai-server:local
+              sudo -E docker compose up -d --force-recreate --build --pull never genovaai-server
+            fi
             
             # Cleanup old images
             echo "🧹 Cleaning up..."
@@ -199,31 +204,20 @@ jobs:
               exit 1
             fi
             
-            # Get prisma folder path from running container
-            PRISMA_PATH=$(sudo docker inspect genovaai-server --format='{{.GraphDriver.Data.MergedDir}}')/app/prisma
-            
-            # Run migration using temporary container with Prisma CLI
+            cd ~/genfity/genovaai-server
+
+            # Run migration using the checked-out prisma folder, not Docker's internal merged dir.
             echo "📦 Running Prisma migrations..."
             sudo docker run --rm \
               --network genfity-network \
               --add-host=host.docker.internal:host-gateway \
               -e DATABASE_URL="$DATABASE_URL" \
-              -v "$PRISMA_PATH":/app/prisma:ro \
+              -v "$PWD/prisma":/app/prisma:ro \
               -w /app \
               node:20-alpine sh -c "
-                npm install prisma@6.19.0 --silent 2>/dev/null
-                
-                # Try migrate deploy first (for existing migrations)
-                echo 'Attempting prisma migrate deploy...'
-                npx prisma migrate deploy 2>&1 && exit 0
-                
-                # If failed, check if we need initial db push
-                echo 'migrate deploy returned non-zero, checking migration state...'
-                npx prisma migrate status 2>&1 || {
-                  echo 'No migrations applied yet, running db push for initial schema...'
-                  npx prisma db push 2>&1
-                }
-              " || echo "⚠️ Migration completed with warnings"
+                npm install prisma@6.19.0 --silent >/dev/null 2>&1
+                npx prisma migrate deploy
+              "
             
             echo "✅ Database migration complete!"
           ENDSSH
