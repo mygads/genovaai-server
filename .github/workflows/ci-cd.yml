@@ -197,7 +197,7 @@ jobs:
             fi
             
             # Get DATABASE_URL from .env
-            DATABASE_URL=$(grep "^DATABASE_URL=" ~/genfity/genovaai-server/.env | cut -d'=' -f2-)
+            DATABASE_URL=$(sudo grep "^DATABASE_URL=" ~/genfity/genovaai-server/.env | cut -d'=' -f2-)
             
             if [ -z "$DATABASE_URL" ]; then
               echo "❌ DATABASE_URL not found in .env!"
