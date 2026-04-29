@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken } from '@/lib/auth-genovaai';
 import { CreditService } from '@/services/credit-service';
 
 /**
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     if (!payload) {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
 import type { Prisma } from '../generated/prisma';
 
@@ -23,6 +24,49 @@ interface UpdateCustomerProviderInput {
 }
 
 export class ProviderCredentialService {
+  private static readonly encryptedPrefix = 'enc:v1:';
+
+  private static getEncryptionKey(): Buffer {
+    const value = process.env.CUSTOMER_CREDENTIAL_ENCRYPTION_KEY;
+    if (!value) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('CUSTOMER_CREDENTIAL_ENCRYPTION_KEY is required');
+      }
+      return crypto.createHash('sha256').update('development-customer-credential-key').digest();
+    }
+
+    const decoded = Buffer.from(value, 'base64');
+    if (decoded.length === 32) return decoded;
+
+    const utf8 = Buffer.from(value, 'utf8');
+    if (utf8.length === 32) return utf8;
+
+    throw new Error('CUSTOMER_CREDENTIAL_ENCRYPTION_KEY must be a 32-byte base64 or 32-character value');
+  }
+
+  static isEncryptedApiKey(apiKey: string): boolean {
+    return apiKey.startsWith(this.encryptedPrefix);
+  }
+
+  static encryptApiKey(apiKey: string): string {
+    if (this.isEncryptedApiKey(apiKey)) return apiKey;
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', this.getEncryptionKey(), iv);
+    const ciphertext = Buffer.concat([cipher.update(apiKey, 'utf8'), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    return `${this.encryptedPrefix}${iv.toString('base64')}:${authTag.toString('base64')}:${ciphertext.toString('base64')}`;
+  }
+
+  static decryptApiKey(apiKey: string): string {
+    if (!this.isEncryptedApiKey(apiKey)) return apiKey;
+    const parts = apiKey.slice(this.encryptedPrefix.length).split(':');
+    if (parts.length !== 3) throw new Error('Invalid encrypted API key format');
+    const [iv, authTag, ciphertext] = parts.map((part) => Buffer.from(part, 'base64'));
+    const decipher = crypto.createDecipheriv('aes-256-gcm', this.getEncryptionKey(), iv);
+    decipher.setAuthTag(authTag);
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+  }
+
   static normalizeBaseUrl(baseUrl: string): string {
     return baseUrl.trim().replace(/\/+$/, '');
   }
@@ -126,7 +170,7 @@ export class ProviderCredentialService {
       update: {
         name: input.name || 'My Provider',
         baseUrl,
-        apiKey: input.apiKey,
+        apiKey: this.encryptApiKey(input.apiKey),
         fetchedModels: this.storedModels(models),
         defaultModel,
         status: 'active',
@@ -138,7 +182,7 @@ export class ProviderCredentialService {
         userId,
         name: input.name || 'My Provider',
         baseUrl,
-        apiKey: input.apiKey,
+        apiKey: this.encryptApiKey(input.apiKey),
         fetchedModels: this.storedModels(models),
         defaultModel,
         status: 'active',
@@ -159,7 +203,7 @@ export class ProviderCredentialService {
     }
 
     const baseUrl = input.baseUrl !== undefined ? this.normalizeBaseUrl(input.baseUrl) : existing.baseUrl;
-    const apiKey = input.apiKey || existing.apiKey;
+    const apiKey = input.apiKey || this.decryptApiKey(existing.apiKey);
     const shouldRefresh = input.refreshModels || input.baseUrl !== undefined || input.apiKey !== undefined;
     let fetchedModels: Prisma.InputJsonValue | undefined = existing.fetchedModels === null
       ? undefined
@@ -191,7 +235,7 @@ export class ProviderCredentialService {
       data: {
         ...(input.name !== undefined && { name: input.name || 'My Provider' }),
         baseUrl,
-        apiKey,
+        apiKey: this.encryptApiKey(apiKey),
         fetchedModels,
         defaultModel: defaultModel || null,
         status,
@@ -237,7 +281,7 @@ export class ProviderCredentialService {
   }) {
     return {
       ...provider,
-      apiKey: this.maskApiKey(provider.apiKey),
+      apiKey: this.isEncryptedApiKey(provider.apiKey) ? 'enc:v1:****' : this.maskApiKey(provider.apiKey),
       models: Array.isArray(provider.fetchedModels) ? provider.fetchedModels : [],
     };
   }

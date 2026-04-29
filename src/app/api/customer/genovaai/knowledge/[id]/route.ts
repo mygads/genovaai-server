@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken } from '@/lib/auth-genovaai';
 import { FileUploadService } from '@/services/file-upload-service';
 
 /**
@@ -22,7 +22,7 @@ export async function GET(
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     if (!payload) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
@@ -73,7 +73,7 @@ export async function DELETE(
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     if (!payload) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
@@ -124,7 +124,7 @@ export async function PATCH(
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     if (!payload) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },

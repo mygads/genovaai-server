@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken, isAdminRole } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken, isAdminRole } from '@/lib/auth-genovaai';
 import { PaidModelService } from '@/services/paid-model-service';
 
 async function getAdminPayload(request: NextRequest) {
@@ -7,7 +7,7 @@ async function getAdminPayload(request: NextRequest) {
   if (!authHeader?.startsWith('Bearer ')) return null;
 
   const token = authHeader.substring(7);
-  const payload = await verifyAccessToken(token);
+  const payload = await verifyActiveAccessToken(token);
   if (!payload || !isAdminRole(payload.role)) return null;
 
   return payload;

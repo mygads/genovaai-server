@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 import { ProviderCredentialService } from '@/services/provider-credential-service';
 import { PaidModelService } from '@/services/paid-model-service';
@@ -24,7 +24,7 @@ async function getPayload(request: NextRequest) {
   if (!authHeader?.startsWith('Bearer ')) return null;
 
   const token = authHeader.substring(7);
-  return verifyAccessToken(token);
+  return verifyActiveAccessToken(token);
 }
 
 async function resolveSessionModel(userId: string, mode: 'byok' | 'paid_balance', requestedModel?: string | null) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyAccessToken, isAdminRole } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken, isAdminRole } from '@/lib/auth-genovaai';
 
 /**
  * GET /api/admin/genovaai/dashboard/stats
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
 
     if (!payload || !payload.userId || !isAdminRole(payload.role)) {
       return NextResponse.json({

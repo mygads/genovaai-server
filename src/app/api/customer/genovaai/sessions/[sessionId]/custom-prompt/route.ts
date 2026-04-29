@@ -1,20 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyActiveAccessToken } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 
-/**
- * PUT /api/customer/genovaai/sessions/[sessionId]/custom-prompt
- * Set or update custom system prompt for a session
- */
+async function authenticate(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  return verifyActiveAccessToken(authHeader.substring(7));
+}
+
+function notFound() {
+  return NextResponse.json(
+    { success: false, error: 'Session not found' },
+    { status: 404 }
+  );
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ): Promise<NextResponse> {
   try {
+    const payload = await authenticate(request);
+    if (!payload) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { sessionId } = await params;
     const body = await request.json();
     const { customSystemPrompt, useCustomPrompt } = body;
 
-    // Validate input
     if (typeof customSystemPrompt !== 'string' || customSystemPrompt.trim().length === 0) {
       return NextResponse.json(
         { success: false, error: 'Custom system prompt must be a non-empty string' },
@@ -29,21 +46,15 @@ export async function PUT(
       );
     }
 
-    // Find session
-    const session = await prisma.extensionSession.findUnique({
-      where: { id: sessionId },
+    const session = await prisma.extensionSession.findFirst({
+      where: { sessionId, userId: payload.userId },
+      select: { id: true },
     });
 
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: 'Session not found' },
-        { status: 404 }
-      );
-    }
+    if (!session) return notFound();
 
-    // Update session with custom prompt
     const updatedSession = await prisma.extensionSession.update({
-      where: { id: sessionId },
+      where: { id: session.id },
       data: {
         customSystemPrompt: customSystemPrompt.trim(),
         useCustomPrompt,
@@ -73,32 +84,29 @@ export async function PUT(
   }
 }
 
-/**
- * DELETE /api/customer/genovaai/sessions/[sessionId]/custom-prompt
- * Remove custom system prompt and revert to default
- */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ): Promise<NextResponse> {
   try {
-    const { sessionId } = await params;
-
-    // Find session
-    const session = await prisma.extensionSession.findUnique({
-      where: { id: sessionId },
-    });
-
-    if (!session) {
+    const payload = await authenticate(request);
+    if (!payload) {
       return NextResponse.json(
-        { success: false, error: 'Session not found' },
-        { status: 404 }
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
       );
     }
 
-    // Clear custom prompt and disable useCustomPrompt
+    const { sessionId } = await params;
+    const session = await prisma.extensionSession.findFirst({
+      where: { sessionId, userId: payload.userId },
+      select: { id: true },
+    });
+
+    if (!session) return notFound();
+
     const updatedSession = await prisma.extensionSession.update({
-      where: { id: sessionId },
+      where: { id: session.id },
       data: {
         customSystemPrompt: null,
         useCustomPrompt: false,
@@ -130,19 +138,22 @@ export async function DELETE(
   }
 }
 
-/**
- * GET /api/customer/genovaai/sessions/[sessionId]/custom-prompt
- * Get current custom prompt configuration
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ): Promise<NextResponse> {
   try {
-    const { sessionId } = await params;
+    const payload = await authenticate(request);
+    if (!payload) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
 
-    const session = await prisma.extensionSession.findUnique({
-      where: { id: sessionId },
+    const { sessionId } = await params;
+    const session = await prisma.extensionSession.findFirst({
+      where: { sessionId, userId: payload.userId },
       select: {
         id: true,
         sessionId: true,
@@ -154,12 +165,7 @@ export async function GET(
       },
     });
 
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: 'Session not found' },
-        { status: 404 }
-      );
-    }
+    if (!session) return notFound();
 
     return NextResponse.json({
       success: true,

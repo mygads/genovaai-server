@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken } from '@/lib/auth-genovaai';
 
 /**
  * GET /api/customer/genovaai/system-settings
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
 
     if (!payload || !payload.userId) {
       return NextResponse.json({

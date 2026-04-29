@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 import { LLMGatewayService } from '@/services/llm-gateway-service';
 import { logErrorFromRequest, ErrorTypes, ErrorCodes } from '@/lib/error-logger';
 import { z } from 'zod';
 
+const MAX_QUESTION_LENGTH = 16000;
+
 const askSchema = z.object({
-  sessionId: z.string().optional(), // OPTIONAL: Jika tidak ada, gunakan default/active session
-  question: z.string().min(1, 'Question is required'),    // REQUIRED: Question
+  sessionId: z.string().optional(),
+  question: z.string().trim().min(1, 'Question is required').max(MAX_QUESTION_LENGTH, `Question must be ${MAX_QUESTION_LENGTH} characters or less`),
   fewShotExamples: z.array(z.object({                     // OPTIONAL: Few-shot examples
     question: z.string(),
     answer: z.string(),
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     if (!payload) {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
@@ -60,19 +62,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Jika sessionId tidak diberikan, cari active session user
     let sessionId = validation.data.sessionId;
-    if (!sessionId) {
+    if (sessionId) {
+      const ownedSession = await prisma.extensionSession.findFirst({
+        where: {
+          sessionId,
+          userId: payload.userId,
+          isActive: true,
+        },
+        select: { sessionId: true },
+      });
+
+      if (!ownedSession) {
+        return NextResponse.json(
+          { success: false, error: 'Session not found' },
+          { status: 404 }
+        );
+      }
+    } else {
       const activeSession = await prisma.extensionSession.findFirst({
         where: {
           userId: payload.userId,
           isActive: true,
         },
-        orderBy: {
-          lastUsedAt: 'desc',
-        },
+        orderBy: [
+          { lastUsedAt: 'desc' },
+          { updatedAt: 'desc' },
+        ],
+        select: { sessionId: true },
       });
-      
+
       if (!activeSession) {
         await logErrorFromRequest(
           request,
@@ -87,7 +106,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      
+
       sessionId = activeSession.sessionId;
     }
 

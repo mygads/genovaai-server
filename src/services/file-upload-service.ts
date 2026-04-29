@@ -1,15 +1,16 @@
 import { prisma } from '../lib/prisma';
+import type { Prisma } from '../generated/prisma';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import mammoth from 'mammoth';
 
-// Local storage directory (use /tmp on Heroku, uploads locally)
-const UPLOAD_DIR = process.env.NODE_ENV === 'production' 
-  ? path.join('/tmp', 'knowledge-files')
-  : path.join(process.cwd(), 'uploads', 'knowledge-files');
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_EXTENSIONS = ['.pdf', '.txt', '.docx'];
+const UPLOAD_DIR = process.env.KNOWLEDGE_UPLOAD_DIR || (process.env.NODE_ENV === 'production'
+  ? path.join('/app', 'uploads', 'knowledge-files')
+  : path.join(process.cwd(), 'uploads', 'knowledge-files'));
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const ALLOWED_EXTENSIONS = ['.pdf', '.txt', '.md', '.docx'];
+const TEXT_PREVIEW_LENGTH = 1000;
 
 export interface UploadFileResult {
   success: boolean;
@@ -86,9 +87,9 @@ export class FileUploadService {
   }
 
   /**
-   * Extract text from TXT
+   * Extract text from TXT or Markdown
    */
-  static async extractTextFromTXT(filePath: string): Promise<string> {
+  static async extractTextFromPlainText(filePath: string): Promise<string> {
     try {
       return await fs.readFile(filePath, 'utf-8');
     } catch (error) {
@@ -100,7 +101,7 @@ export class FileUploadService {
   /**
    * Extract text based on file type
    */
-  static async extractText(filePath: string, fileType: string): Promise<string> {
+  static async extractText(filePath: string): Promise<string> {
     const ext = path.extname(filePath).toLowerCase();
 
     switch (ext) {
@@ -109,7 +110,8 @@ export class FileUploadService {
       case '.docx':
         return await this.extractTextFromDOCX(filePath);
       case '.txt':
-        return await this.extractTextFromTXT(filePath);
+      case '.md':
+        return await this.extractTextFromPlainText(filePath);
       default:
         throw new Error(`Unsupported file type: ${ext}`);
     }
@@ -147,14 +149,24 @@ export class FileUploadService {
       // Extract text
       let extractedText = '';
       try {
-        extractedText = await this.extractText(filePath, ext);
+        extractedText = await this.extractText(filePath);
       } catch (extractError) {
         // If extraction fails, still save the file but with empty text
         console.error('Text extraction failed:', extractError);
       }
 
-      // Determine file type
-      const fileType = ext.substring(1).toUpperCase(); // Remove dot and uppercase
+      if (sessionId) {
+        const session = await prisma.extensionSession.findFirst({
+          where: { sessionId, userId, isActive: true },
+          select: { id: true },
+        });
+        if (!session) {
+          await fs.unlink(filePath).catch(() => undefined);
+          return { success: false, error: 'Session not found' };
+        }
+      }
+
+      const fileType = ext.substring(1).toUpperCase();
 
       // Save metadata to database
       const knowledgeFile = await prisma.knowledgeFile.create({
@@ -176,7 +188,7 @@ export class FileUploadService {
         fileId: knowledgeFile.id,
         fileName: knowledgeFile.fileName,
         fileSize: knowledgeFile.fileSize,
-        extractedText: extractedText.substring(0, 500), // Return first 500 chars as preview
+        extractedText: extractedText.substring(0, TEXT_PREVIEW_LENGTH),
       };
     } catch (error) {
       console.error('File upload error:', error);
@@ -209,7 +221,7 @@ export class FileUploadService {
     limit: number = 50,
     offset: number = 0
   ) {
-    const where: any = {
+    const where: Prisma.KnowledgeFileWhereInput = {
       userId,
       isActive: true,
     };
@@ -230,13 +242,19 @@ export class FileUploadService {
         fileSize: true,
         uploadedAt: true,
         sessionId: true,
-        extractedText: false, // Don't return full text in list
+        extractedText: true,
       },
     });
 
     const total = await prisma.knowledgeFile.count({ where });
 
-    return { files, total };
+    return {
+      files: files.map(({ extractedText, ...file }) => ({
+        ...file,
+        extractedTextPreview: extractedText ? extractedText.substring(0, TEXT_PREVIEW_LENGTH) : '',
+      })),
+      total,
+    };
   }
 
   /**
@@ -317,6 +335,14 @@ export class FileUploadService {
     try {
       const file = await this.getFile(fileId, userId);
       if (!file) {
+        return false;
+      }
+
+      const session = await prisma.extensionSession.findFirst({
+        where: { sessionId, userId, isActive: true },
+        select: { id: true },
+      });
+      if (!session) {
         return false;
       }
 

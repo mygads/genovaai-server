@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken } from '@/lib/auth-genovaai';
 import { PaymentGatewayFactory } from '@/lib/payment-gateway/factory';
 import { logErrorFromRequest, ErrorTypes, ErrorCodes } from '@/lib/error-logger';
 import { VoucherService } from '@/services/voucher-service';
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     if (!payload) {
       return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 });
     }
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
     
     if (tokenHeader?.startsWith('Bearer ')) {
       const token = tokenHeader.substring(7);
-      const payload = await verifyAccessToken(token);
+      const payload = await verifyActiveAccessToken(token);
       userId = payload?.userId;
     }
     

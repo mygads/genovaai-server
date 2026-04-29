@@ -2,8 +2,17 @@ import 'dotenv/config';
 import { SignJWT, jwtVerify } from 'jose';
 import * as bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key-min-32-chars-change-in-production');
-const REFRESH_SECRET = new TextEncoder().encode(process.env.REFRESH_SECRET || 'your-refresh-secret-key-min-32-chars-change-in-production');
+
+function getTokenSecret(name: 'JWT_SECRET' | 'REFRESH_SECRET'): Uint8Array {
+  const value = process.env[name];
+  if (!value) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`${name} is required`);
+    }
+    return new TextEncoder().encode(`${name.toLowerCase()}-development-placeholder-min-32-chars`);
+  }
+  return new TextEncoder().encode(value);
+}
 
 export interface TokenPayload {
   userId: string;
@@ -24,7 +33,7 @@ export async function generateAccessToken(payload: TokenPayload): Promise<string
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(JWT_SECRET);
+    .sign(getTokenSecret('JWT_SECRET'));
   
   return token;
 }
@@ -37,7 +46,7 @@ export async function generateRefreshToken(payload: TokenPayload): Promise<strin
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(REFRESH_SECRET);
+    .sign(getTokenSecret('REFRESH_SECRET'));
   
   return token;
 }
@@ -47,12 +56,39 @@ export async function generateRefreshToken(payload: TokenPayload): Promise<strin
  */
 export async function verifyAccessToken(token: string): Promise<TokenPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload as unknown as TokenPayload;
+    const { payload } = await jwtVerify(token, getTokenSecret('JWT_SECRET'));
+    const tokenPayload = payload as unknown as TokenPayload;
+    if (!tokenPayload.userId || !tokenPayload.sessionId) return null;
+    return tokenPayload;
   } catch (error) {
     console.error('Access token verification failed:', error);
     return null;
   }
+}
+
+export async function verifyActiveAccessToken(token: string): Promise<TokenPayload | null> {
+  const tokenPayload = await verifyAccessToken(token);
+  if (!tokenPayload) return null;
+
+  const session = await prisma.userSession.findFirst({
+    where: {
+      id: tokenPayload.sessionId,
+      userId: tokenPayload.userId,
+      isActive: true,
+      expiresAt: { gt: new Date() },
+      user: { isActive: true },
+    },
+    select: { id: true },
+  });
+
+  if (!session) return null;
+
+  await prisma.userSession.update({
+    where: { id: tokenPayload.sessionId },
+    data: { lastUsed: new Date() },
+  });
+
+  return tokenPayload;
 }
 
 /**
@@ -60,7 +96,7 @@ export async function verifyAccessToken(token: string): Promise<TokenPayload | n
  */
 export async function verifyRefreshToken(token: string): Promise<TokenPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, REFRESH_SECRET);
+    const { payload } = await jwtVerify(token, getTokenSecret('REFRESH_SECRET'));
     return payload as unknown as TokenPayload;
   } catch (error) {
     console.error('Refresh token verification failed:', error);

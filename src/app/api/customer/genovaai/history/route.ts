@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@/generated/prisma';
 
 /**
  * GET /api/customer/genovaai/history
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     if (!payload) {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const sessionId = searchParams.get('sessionId'); // Optional filter by session
 
-    const where: any = { userId: payload.userId };
+    const where: Prisma.ChatHistoryWhereInput = { userId: payload.userId };
     if (sessionId) {
       where.sessionId = sessionId;
     }
@@ -76,16 +77,10 @@ export async function GET(request: NextRequest) {
       });
     } catch (dbError) {
       console.error('Database query error:', dbError);
-      // Return empty history if query fails
-      return NextResponse.json({
-        success: true,
-        data: {
-          history: [],
-          total: 0,
-          limit,
-          offset,
-        },
-      });
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch history' },
+        { status: 500 }
+      );
     }
   } catch (error) {
     console.error('History fetch error:', error);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken, isAdminRole } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken, isAdminRole } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@/generated/prisma';
 import { z } from 'zod';
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },

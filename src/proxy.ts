@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyAccessToken } from './lib/auth-genovaai';
+import { verifyProxyAccessToken } from './lib/proxy-auth';
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -19,7 +19,7 @@ export async function proxy(request: NextRequest) {
     }
     
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyProxyAccessToken(token);
     
     if (!payload) {
       return NextResponse.json({
@@ -54,7 +54,7 @@ export async function proxy(request: NextRequest) {
     }
     
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyProxyAccessToken(token);
     
     if (!payload) {
       return NextResponse.json({

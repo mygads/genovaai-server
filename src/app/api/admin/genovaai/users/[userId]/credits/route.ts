@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken, isAdminRole } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken, isAdminRole } from '@/lib/auth-genovaai';
 import { CreditService } from '@/services/credit-service';
 import { z } from 'zod';
 
@@ -24,7 +24,7 @@ export async function POST(
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     if (!payload || !isAdminRole(payload.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },

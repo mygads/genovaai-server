@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken, invalidateSession } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken, invalidateSession } from '@/lib/auth-genovaai';
 
 /**
  * POST /api/auth/logout
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
     // Verify token
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     
     if (!payload) {
       return NextResponse.json({

@@ -57,6 +57,19 @@ interface OpenAICompatibleResult {
   totalTokens?: number;
 }
 
+interface OpenAICompatibleResponse {
+  choices?: Array<{
+    message?: {
+      content?: unknown;
+    };
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
 export class LLMGatewayService {
   static async processRequest(request: LLMRequest): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -198,7 +211,7 @@ export class LLMGatewayService {
     try {
       const result = await this.callOpenAICompatible({
         baseUrl: provider.baseUrl,
-        apiKey: provider.apiKey,
+        apiKey: ProviderCredentialService.decryptApiKey(provider.apiKey),
         model: request.model,
         systemPrompt: request.systemPrompt,
         knowledge: request.knowledgeContext,
@@ -315,7 +328,7 @@ export class LLMGatewayService {
       content: formatUserQuestion(params.question, undefined, params.outputFormat),
     });
 
-    let data: any = null;
+    let data: OpenAICompatibleResponse | null = null;
     let lastError = 'OpenAI-compatible provider error';
 
     for (const endpoint of ProviderCredentialService.endpointCandidates(baseUrl, '/chat/completions')) {
@@ -339,7 +352,7 @@ export class LLMGatewayService {
         throw new Error(lastError);
       }
 
-      data = await response.json();
+      data = await response.json() as OpenAICompatibleResponse;
       break;
     }
 

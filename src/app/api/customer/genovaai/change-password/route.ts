@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken, comparePassword, hashPassword } from '@/lib/auth-genovaai';
+import { verifyActiveAccessToken, comparePassword, hashPassword } from '@/lib/auth-genovaai';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const payload = await verifyAccessToken(token);
+    const payload = await verifyActiveAccessToken(token);
     if (!payload) {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
